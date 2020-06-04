@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gameProject>
+	<name>TresGoesDE</name>
+	<description/>
+	<dataDirectory>data</dataDirectory>
+	<cacheDirectory>cache</cacheDirectory>
+	<baseGameDefinition>DragonScript Basic</baseGameDefinition>
+	<projectGameDefinition>TresGoesDE.degd</projectGameDefinition>
+	<scriptModule version='1.1'>DragonScript</scriptModule>
+</gameProject>

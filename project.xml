@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+	<profile>
+		<name>Development</name>
+		<description>Development profile.</description>
+		<scriptDirectory>/scripts</scriptDirectory>
+		<gameObject>GameApp</gameObject>
+		<pathConfig>/config</pathConfig>
+		<pathCapture>/capture</pathCapture>
+		<identifier>c37d1fde-3039-81b3-2064-ad5bcba0f1a8</identifier>
+		<aliasIdentifier>tresgoesde</aliasIdentifier>
+		<title>Trespasser Goes Drag[en]gine</title>
+		<gameDescription>Development</gameDescription>
+		<creator>Dragon Dreams</creator>
+		<website>https://dragondreams.ch</website>
+		<delgaPath>distribute/TresGoesDE.delga</delgaPath>
+	</profile>
+	<profile>
+		<name>Release</name>
+		<description>Release profile.</description>
+		<scriptDirectory>/scripts</scriptDirectory>
+		<gameObject>GameApp</gameObject>
+		<pathConfig>/config</pathConfig>
+		<pathCapture>/capture</pathCapture>
+		<identifier>c37d1fde-3039-81b3-2064-ad5bcba0f1a8</identifier>
+		<aliasIdentifier>tresgoesde</aliasIdentifier>
+		<title>Trespasser Goes Drag[en]gine</title>
+		<gameDescription>Trespasser converted to run using the Drag[en]gine Game Engine. Requires original game data to be present to run.</gameDescription>
+		<creator>Dragon Dreams</creator>
+		<website>https://dragondreams.ch</website>
+		<excludePattern>/develop</excludePattern>
+		<delgaPath>distribute/TresGoesDE.delga</delgaPath>
+	</profile>
+</project>

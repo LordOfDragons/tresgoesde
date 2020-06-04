@@ -1,0 +1,92 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace Tgde
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Game Application Class.
+ */
+class GameApp extends BaseGameApp
+	public func new()
+		pathDesktopGuiTheme = "/content/ui/main.guitheme.xml"
+		pathLanguagePacks = "/content/langpacks"
+		defaultLanguagePackName = UnicodeString.newFromUTF8( "English" )
+	end
+	
+	public func void initGame()
+		super.initGame()
+		
+		WindowLogo.showDragengineLogo( this.getDesktop(), BlockActionListener.new( \
+			block ActionEvent event
+				launchApplication()
+			end ) )
+	end
+	
+	public func void launchApplication()
+		getWindowGameWorld().setVisible( false )
+		
+		var Window window = Window.new()
+		window.setLayout( BorderLayout.new( 10 ) )
+		window.addWidget( Label.new( "Congratulations!\n\n" \
+			+ "Your new game project is up and running.\n\n" \
+			+ "Add now a world to load" ), BorderLayout.Area.content )
+		window.addWidget( Button.new( "Quit Game", QuitGameActionListener.new() ), BorderLayout.Area.bottom )
+		getDesktop().addWidget( window )
+		window.fitToContent()
+		window.centerWindow()
+		
+		/*
+		// BaseGameApp adds a WindowConsole which can be toggled by pressing F1 key. Adding
+		// a ShoutConsole shows the last messages without needing to show the console.
+		getWindowGameWorld().addWidget( ShoutConsole.new( getConsole() ) )
+		
+		// Logging can be done by adding messages to the console
+		getConsole().addMessage( "Loading world..." )
+		
+		// startLoadGameWorld is a simple way to start loading a game world into the
+		// WindowGameWorld created by BaseGameApp. StartGame is a script class created
+		// alongside this application class. It will be notified when the world loading
+		// finishes and contains the required code to finish starting the game.
+		// 
+		// To use this create a world file and change the filename
+		startLoadGameWorld( StartGame.new( getWindowGameWorld(), "/content/world/game.deworld" ) )
+		*/
+	end
+	
+	protected func void createAndAddElementClasses()
+		super.createAndAddElementClasses()
+		
+		var ElementClassList eclist = getElementClassList()
+		//eclist.add(MyElementClassClass.new())
+		
+		getLoaders().getElementClass().addXmlElementClasses( eclist, "/content/models", true )
+	end
+	
+	public func void cleanUp()
+		super.cleanUp()
+	end
+end

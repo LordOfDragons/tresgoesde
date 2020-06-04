@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<guiTheme extend='/shareddata/guithemes/modern/modern.guitheme.xml'>
+	<designer name='Desktop' type='Desktop'>
+		<canvasCreator parameter='normal.canvas' type='Rectangle'>
+			<color parameter='colorFill' r='0' g='0' b='0'/>
+		</canvasCreator>
+		
+		<mousePointer parameter='normal.mousePointer' type='Image'>
+			<image parameter='image'>/shareddata/guithemes/modern/mousepointer/default.png</image>
+		</mousePointer>
+	</designer>
+	
+	<designer name='Desktop.InGame' type='Desktop'>
+	</designer>
+</guiTheme>
