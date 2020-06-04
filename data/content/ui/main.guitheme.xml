@@ -12,4 +12,7 @@
 	
 	<designer name='Desktop.InGame' type='Desktop'>
 	</designer>
+	
+	<designer name='WindowMain' extendNamed='Window'>
+	</designer>
 </guiTheme>

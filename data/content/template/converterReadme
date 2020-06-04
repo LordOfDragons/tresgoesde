@@ -1,0 +1,20 @@
+Trespasser Goes Drag[en]gine Converter
+======================================
+
+This overlay directory is used by the Converted to convert from
+Trespasser to Drag[en]gine.
+
+To use this converter you need to have either the original
+Trespasser CD at hand or a full disk installation directory.
+
+Link the "MAPS" directory into this directory named "trespasser".
+Filename is case sensitive.
+
+Optionally you can also create a directory named "trespasser"
+and link the "MAPS" directory into it. The directory is searched
+recusrively.
+
+Optionally you can also just link individual files from the "MAPS"
+directory into the "trespasser" directory.
+
+The "dragengine" directory is the output of the converter. Do not touch.

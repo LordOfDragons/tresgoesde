@@ -1,0 +1,116 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Main window
+ */
+class WindowMain extends Window
+	// run scene action.
+	class ActionRunScene extends DefaultActionListener
+		public var WindowMain windowMain
+		
+		public func new( WindowMain window )
+			windowMain = window
+		end
+		
+		public func void onAction( ActionEvent event )
+		end
+	end
+	
+	// convert scene action.
+	class ActionConvertScene extends DefaultActionListener
+		public var WindowMain windowMain
+		
+		public func new( WindowMain window )
+			windowMain = window
+		end
+		
+		public func void onAction( ActionEvent event )
+			var DefaultListModel scenes = DefaultListModel.new()
+			GameApp.getGameApp().converter.fillModelConvertableScenes( scenes )
+			
+			WindowDialog.chooseList( windowMain, "Convert Scene", "Select Scene to convert", \
+				null, scenes, DefaultListElementRenderer.new( String.new( 'X', 25 ) ), \
+				WindowDialog.ButtonConfiguration.new( "Convert" ), null, \
+				WindowDialog.BlockResultListener.new( block int result
+					if result != -1
+						// convert scenes.getAt( result )
+					end
+				end ) )
+		end
+	end
+	
+	
+	public var DefaultListModel modelScenes //<! list model containing scenes to display
+	
+	
+	public func new() super( 10, 30, 400, 400 )
+		modelScenes = DefaultListModel.new()
+		
+		runWhileBlockingLayout( block
+			setTitle( "Trespasser Goes Drag[en]gine" )
+			setCanClose( false )
+			setCanMaximize( false )
+			setCanMinimize( false )
+			setDesignerSelector( "WindowMain" )
+			setLayout( BorderLayout.new( 2 ) )
+			
+			// label in top area
+			addWidget( Label.new( "Converted Scenes", "Label.WindowMain" ), BorderLayout.Area.top )
+			
+			// list of converted scenes in the center which stretches
+			addWidget( ScrollPanel.new( ListBox.new( modelScenes ), ScrollPanel.Policy.hidden, \
+				ScrollPanel.Policy.visible ), BorderLayout.Area.content )
+			
+			// buttons in bottom area
+			addWidget( Panel.new( FlowLayout.new( LayoutAxis.y, 2 ), block Panel p
+				var Button button = Button.new( "Run", ActionRunScene.new( this ) )
+				button.setDesignerSelector( "Button.WindowMain.Run" )
+				p.addWidget( button )
+				
+				button = Button.new( "Convert", ActionConvertScene.new( this ) )
+				button.setDesignerSelector( "Button.WindowMain.Convert" )
+				p.addWidget( button )
+				
+				button = Button.new( "Quit", QuitGameActionListener.new() )
+				button.setDesignerSelector( "Button.WindowMain.Quit" )
+				p.addWidget( button )
+			end ), BorderLayout.Area.bottom )
+		end )
+		doLayout()
+		
+		GameApp.getApp().getDesktop().addWindow( this )
+	end
+	
+	
+	// update list of converted scenes
+	public func void updateListScenes()
+		GameApp.getGameApp().converter.fillModelConvertedScenes( modelScenes )
+	end
+end

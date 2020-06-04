@@ -19,7 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-namespace Tgde
+namespace TresGoesDE
 
 pin Dragengine.Gui.Layouts
 pin Dragengine.Gui.Events
@@ -31,6 +31,10 @@ pin Dragengine.Utils
  * Game Application Class.
  */
 class GameApp extends BaseGameApp
+	public var TresDeConverter converter //<! Converter from trespasser to dragengine
+	public var WindowMain windowMain
+	
+	
 	public func new()
 		pathDesktopGuiTheme = "/content/ui/main.guitheme.xml"
 		pathLanguagePacks = "/content/langpacks"
@@ -39,6 +43,8 @@ class GameApp extends BaseGameApp
 	
 	public func void initGame()
 		super.initGame()
+		
+		converter = TresDeConverter.new()
 		
 		WindowLogo.showDragengineLogo( this.getDesktop(), BlockActionListener.new( \
 			block ActionEvent event
@@ -49,15 +55,8 @@ class GameApp extends BaseGameApp
 	public func void launchApplication()
 		getWindowGameWorld().setVisible( false )
 		
-		var Window window = Window.new()
-		window.setLayout( BorderLayout.new( 10 ) )
-		window.addWidget( Label.new( "Congratulations!\n\n" \
-			+ "Your new game project is up and running.\n\n" \
-			+ "Add now a world to load" ), BorderLayout.Area.content )
-		window.addWidget( Button.new( "Quit Game", QuitGameActionListener.new() ), BorderLayout.Area.bottom )
-		getDesktop().addWidget( window )
-		window.fitToContent()
-		window.centerWindow()
+		windowMain = WindowMain.new()
+		windowMain.updateListScenes()
 		
 		/*
 		// BaseGameApp adds a WindowConsole which can be toggled by pressing F1 key. Adding
@@ -87,6 +86,17 @@ class GameApp extends BaseGameApp
 	end
 	
 	public func void cleanUp()
+		// close main window
+		if windowMain != null
+			windowMain.close()
+			windowMain = null
+		end
+		
 		super.cleanUp()
+	end
+	
+	// quick access for game app instance
+	static public func GameApp getGameApp()
+		return getApp() cast GameApp
 	end
 end
