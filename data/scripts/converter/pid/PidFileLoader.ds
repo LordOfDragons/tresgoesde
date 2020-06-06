@@ -1,0 +1,209 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * PidFile loader.
+ */
+class PidFileLoader extends FrameUpdateListener
+	// Listener to notify task when pidFile finished loading
+	interface Listener
+		// PidFile finished loading.
+		func void finished( PidFile pidFile )
+		
+		// PidFile failed loading.
+		func void failed( Exception exception )
+		
+		// Print out log entry.
+		func void log( String message )
+	end
+	
+	// Task state
+	private enum State
+		header //<! Open file and read header
+		palettes //<! Read palettes
+		pids //<! Read pids
+		done //<! Reading finished
+	end
+	
+	
+	private var Listener pListener
+	private var String pFilename
+	private var State pState
+	private var PidFile pPidFile
+	private var FileReader pReader
+	private var int pNextIndex
+	private var Array pCollector
+	private var Dictionary pMapBitDepth
+	private var Dictionary pMapTransparency
+	private var Dictionary pMapType
+	
+	
+	public func new( String filename, Listener listener )
+		pFilename = filename
+		pState = State.header
+		pListener = listener
+	end
+	
+	
+	// Cancel loading.
+	public func void cancel()
+		giveUp()
+	end
+	
+	// Step loading
+	public func void frameUpdate( float elapsed )
+		try
+			select pState
+			case State.header
+				readHeader()
+				
+			case State.palettes
+				readPalettes()
+				
+			case State.pids
+				readPids()
+				
+			case State.done
+				giveUp()
+			end
+			
+		catch Exception e
+			giveUp()
+			pState = State.done
+			pListener.failed( e )
+		end
+	end
+	
+	
+	// Open file and read header.
+	private func void readHeader()
+		pReader = ConverterUtils.readTresFile( pFilename )
+		
+		pPidFile = PidFile.new( pFilename )
+		pListener.log( "Reading PID Header..." )
+		
+		var PidFileHeader header = pPidFile.getHeader()
+		header.setVersion( pReader.readUInt() )
+		header.setBumpMapBits( pReader.readUInt() )
+		header.setOffsetPids( pReader.readUInt() )
+		header.setCountPids( pReader.readUInt() )
+		header.setOffsetPalettes( pReader.readUInt() )
+		header.setCountPalettes( pReader.readUInt() )
+		header.setOffsetSwapableData( pReader.readUInt() )
+		header.setOffsetStaticData( pReader.readUInt() )
+		
+		pState = State.palettes
+	end
+	
+	// Read palettes.
+	private func void readPalettes()
+		pListener.log( "Reading PID Palettes..." )
+		
+		var int i, j, count = pPidFile.getHeader().getCountPalettes()
+		for i = 0 to count
+			var PidFilePalette palette = PidFilePalette.new()
+			palette.setLength( pReader.readUInt() )
+			palette.setCountColors( pReader.readUInt() )
+			pReader.movePosition( 4 )
+			for j = 0 to palette.getCountColors()
+				palette.addColor( readColor8() )
+			end
+			pReader.movePosition( 4 )
+			
+			pPidFile.addPalette( palette )
+		end
+		
+		pState = State.pids
+		pNextIndex = -1
+	end
+	
+	// Read pids.
+	private func void readPids()
+		if pNextIndex == -1
+			pListener.log( "Reading PID Pids..." )
+			pNextIndex = 0
+			
+			pMapBitDepth = Dictionary.new()
+			pMapBitDepth.setAt( 8, PidFileEntry.BitDepth.indexed )
+			pMapBitDepth.setAt( 16, PidFileEntry.BitDepth.rgb16 )
+			
+			pMapTransparency = Dictionary.new()
+			pMapTransparency.setAt( 0, PidFileEntry.Transparency.none )
+			pMapTransparency.setAt( 1, PidFileEntry.Transparency.bumpMapped )
+			pMapTransparency.setAt( 8, PidFileEntry.Transparency.normal )
+			
+			pMapType = Dictionary.new()
+			pMapType.setAt( 0, PidFileEntry.Type.indexed )
+			pMapType.setAt( 1, PidFileEntry.Type.curvedBumpMap )
+			pMapType.setAt( 16, PidFileEntry.Type.indexedBumpMap )
+		end
+		
+		var int i, count = pPidFile.getHeader().getCountPids()
+		var int last = DEMath.min( pNextIndex + 20, count )
+		for pNextIndex = pNextIndex to last
+			var PidFileEntry entry = PidFileEntry.new()
+			
+			entry.setLength( pReader.readUInt() )
+			entry.setOffsetSWP( pReader.readUInt() )
+			entry.setWidth( pReader.readUInt() )
+			entry.setHeight( pReader.readUInt() )
+			entry.setStride( pReader.readUInt() )
+			entry.setBitCount( pMapBitDepth.getAt( pReader.readUInt() ) cast PidFileEntry.BitDepth )
+			entry.setDefaultColor( readColor8() )
+			entry.setTransparency( pMapTransparency.getAt( pReader.readUInt() ) cast PidFileEntry.Transparency )
+			entry.setType( pMapType.getAt( pReader.readUInt() ) cast PidFileEntry.Type )
+			entry.setOcclusion( pReader.readUInt() == 0h02000000 )
+			entry.setPalette( pPidFile.getPaletteAt( pReader.readUInt() ) )
+			entry.setUnknown( pReader.readUInt() )
+			entry.setPid( pReader.readUInt() )
+			entry.setMipMapped( pReader.readUInt() )
+			
+			if entry.getMipMapped() == 0
+				pPidFile.addPid( entry )
+			end
+		end
+		
+		if last == count
+			giveUp()
+			pState = State.done
+			pListener.finished( pPidFile )
+		end
+	end
+	
+	
+	
+	// Read RGBA color in 8-bit integer format.
+	private func Color readColor8()
+		var float b = ( pReader.readByte() cast float ) / 255
+		var float g = ( pReader.readByte() cast float ) / 255
+		var float r = ( pReader.readByte() cast float ) / 255
+		var float a = ( pReader.readByte() cast float ) / 255
+		return Color.new( r, g, b, a )
+	end
+end

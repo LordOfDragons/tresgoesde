@@ -31,7 +31,7 @@ pin Dragengine.Utils
  * Task converter from Trespasser to Drag[en]gine. Supports stepping since converting
  * takes some time. Updates progress using a listener.
  */
-class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
+class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener, PidFileLoader.Listener
 	// Listener used to shows progress update.
 	interface Listener
 		// Print out log entry.
@@ -47,10 +47,13 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 	// Task state
 	private enum State
 		clear //<! Clear output directory
+		loadPidFile //<! Load pid file
 		loadGroff //<! Load groff file
 		mergeMappings //<! Merge mappings into geometry
 		propagateDiffuse //<! Propagate 'Diffuse' property in instances to materials
 		propagateSubMaterial //<! Propagate 'SubMaterialXX' properties in instances to materials
+		calcMaterialPids //<! Calculate material PIDs
+		matchGroffMaterials //<! Match groff materials to pids
 		done //<! Task is done
 	end
 	
@@ -64,18 +67,13 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 	private var File pOutputDir
 	private var GroffLoader pGroffLoader
 	private var Groff pGroff
+	private var PidFileLoader pPidFileLoader
+	private var PidFile pPidFile
 	
 	private var int pNextIndex
 	private var Array pCollector
 	private var GroffValueName pPropertyNameDiffuse
 	private var Array pPropertySubMaterial
-	
-	private var String pPathSCN
-	private var String pPathGRF
-	private var String pPathPID
-	private var String pPathSPZ
-	private var String pPathSWP
-	private var String pPathWTD
 	
 	
 	
@@ -110,6 +108,15 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 			case State.propagateSubMaterial
 				propagateSubMaterial()
 				
+			case State.calcMaterialPids
+				calcMaterialPids()
+				
+			case State.loadPidFile
+				loadPidFile()
+				
+			case State.matchGroffMaterials
+				matchGroffMaterials()
+				
 			case State.done
 				giveUp()
 				pListener = null
@@ -137,7 +144,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 		if FileSystem.existsFile( pOutputDir.getPath() )
 			deleteDirectory( pOutputDir.getPath() )
 		end
-		pState = State.loadGroff
+		pState = State.loadPidFile
 	end
 	
 	private func void deleteDirectory( String directory )
@@ -159,6 +166,28 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 			FileSystem.deleteFile( each )
 		end )
 		FileSystem.deleteFile( directory )
+	end
+	
+	// Load pid file
+	private func void loadPidFile()
+		if pPidFileLoader != null
+			return
+		end
+		
+		pListener.log( "Load PID " + pMapName + ".pid ..." )
+		pPidFileLoader = PidFileLoader.new( ( pInputDir + ( pMapName + "-130.pid" ) ).getPath(), this )
+	end
+	
+	public func void finished( PidFile pidFile )
+		pPidFile = pidFile
+		pPidFileLoader = null
+		pState = State.loadGroff
+		
+		// DEBUG
+		/*var FileWriter writer = FileWriter.new( "/overlay/debug_pids" )
+		pPidFile.forEachPid( block PidFileEntry each
+			writer.writeString( "pid " + each.getPid() + "\n" )
+		end )*/
 	end
 	
 	// Load groff file
@@ -264,20 +293,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 	private func void propagateSubMaterial()
 		if pNextIndex == -1
 			pListener.log( "Propage 'SubMaterialXX' properties..." )
-			
 			pPropertySubMaterial = Array.new()
-			var String name
-			var int i
-			for i = 0 to 50
-				name = "SubMaterial"
-				if i < 10
-					name = name + "0" + ( i + 1 )
-				else
-					name = name + ( i + 1 )
-				end
-				pPropertySubMaterial.add( pGroff.getValueNameByNameOrNull( name ) )
-			end
-			
 			pNextIndex = 0
 		end
 		
@@ -292,6 +308,16 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 					if material != null
 						var int i
 						for i = 0 to material.getMaterialCount()
+							while pPropertySubMaterial.getCount() <= i
+								var String name = "SubMaterial"
+								if i < 10
+									name = name + "0" + ( i + 1 )
+								else
+									name = name + ( i + 1 )
+								end
+								pPropertySubMaterial.add( pGroff.getValueNameByNameOrNull( name ) )
+							end
+							
 							var GroffValueName name = pPropertySubMaterial.getAt( i ) cast GroffValueName
 							if name != null
 								var GroffValue property = value.getProperty( name )
@@ -310,17 +336,83 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 		pNextIndex = last
 		
 		if last == count
-			pState = State.done
+			pState = State.calcMaterialPids
+			pNextIndex = -1
+		end
+	end
+	
+	// Calculate material PIDs
+	private func void calcMaterialPids()
+		if pNextIndex == -1
+			pListener.log( "Calculate Material PIDs..." )
+			pCollector = Array.new()
+			pGroff.forEachMaterial( block GroffMaterial each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffMaterial material
+			material.calculatePids( pPidFile )
 			
+			var int i, count = material.getMaterialCount()
+			for i = 0 to count
+				if ( not material.getColorMapAt( i ).getName().getName().empty() \
+				or not material.getBumpMapAt( i ).getName().getName().empty() ) \
+				and material.getPidAt( i ) == null
+					pListener.log( "pid missing: '" + material.getColorMapAt( i ).getName().getName() \
+						+ "', '" + material.getBumpMapAt( i ).getName().getName() + "', " \
+						+ material.getDiffuseValueAt( i ) )
+				end
+			end
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.matchGroffMaterials
+		end
+	end
+	
+	// Matching groff materials to pid file entries
+	private func void matchGroffMaterials()
+		/*
+		if pNextIndex == -1
+			pListener.log( "Matching groff materials to pid file entries..." )
+			pCollector = Array.new()
+			pGroff.forEachMaterial( block GroffMaterial each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffMapping material
+			var int i, count = material.getMaterialCount()
+			for i = 0 to count
+				if not material.getColorMapAt( i ).getName().getName().empty()
+					var PidFileEntry entry = pPidFile.getPidById( material.getPidAt( i ) )
+					in self.pidsByID:
+						pid = self.pidsByID[material.pids[i]]
+						pid.groffMaterial = material
+						material.linkPIDs[i] = pid
+						mappedCount = mappedCount + 1
+					else:
+						failedCount = failedCount + 1
+						print('- pid {:X} failed for material {}({}): color=\'{}\' bump=\'{}\''.format(
+							material.pids[i], material.id, i, material.colorMaps[i].name,
+							material.bumpMaps[i].name))
+			
+		end )
+		pNextIndex = last
+		
+		if last == count*/
 			pListener.log( "Done" )
 			pListener.succeeded()
 			cleanUp()
-			
-			/* next
-			for instance in self.instances:
-				instance.processValues(self)
-			*/
-		end
+		//end
 	end
 	
 	
@@ -347,6 +439,10 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
 		if pGroffLoader != null
 			pGroffLoader.cancel()
 			pGroffLoader = null
+		end
+		if pPidFileLoader != null
+			pPidFileLoader.cancel()
+			pPidFileLoader = null
 		end
 	end
 end

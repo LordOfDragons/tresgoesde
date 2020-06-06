@@ -133,10 +133,7 @@ class GroffLoader extends FrameUpdateListener
 	// Open file and read header.
 	private func void readHeader()
 		if pReader == null
-			// TODO file names under windows are case insensitive. for this reason reading
-			//      files under linux fails in such situations. change the code to search
-			//      for files matching case insensitive
-			pReader = FileReader.new( pFilename )
+			pReader = ConverterUtils.readTresFile( pFilename )
 			
 			if pReader.readUInt() == 0h44445A53
 				pListener.log( "Decompressing GRF..." )
@@ -559,8 +556,6 @@ class GroffLoader extends FrameUpdateListener
 			material.setSpecularLighting( pReader.readUInt() )
 			material.setOpacity( pReader.readUInt() )
 			material.setBumpiness( pReader.readUInt() )
-			
-			material.calculatePids()
 			
 			pGroff.addMaterial( material )
 		end )

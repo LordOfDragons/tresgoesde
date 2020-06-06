@@ -253,7 +253,7 @@ class Groff
 			image = GroffImage.new( id, getNameById( id ) )
 			pImageTable.add( image )
 			pImageTableByID.setAt( id, image )
-			pImageTableByPID.setAt( image.getPid(), image )
+			//pImageTableByPID.setAt( image.getPid(), image )
 		end
 		return image
 	end

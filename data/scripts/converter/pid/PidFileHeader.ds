@@ -1,0 +1,135 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+/**
+ * PidHeader file.
+ */
+class PidFileHeader
+	private var int pVersion
+	private var int pBumpMapBits
+	private var int pCountPids
+	private var int pCountPalettes
+	private var int pOffsetPids
+	private var int pOffsetPalettes
+	private var int pOffsetSwapableData
+	private var int pOffsetStaticData
+	
+	
+	public func new()
+		pVersion = 0
+		pBumpMapBits = 0
+		pCountPids = 0
+		pCountPalettes = 0
+		pOffsetPids = 0
+		pOffsetPalettes = 0
+		pOffsetSwapableData = 0
+		pOffsetStaticData = 0
+	end
+	
+	
+	public func int getVersion()
+		return pVersion
+	end
+	
+	public func void setVersion( int version )
+		pVersion = version
+	end
+	
+	public func int getBumpMapBits()
+		return pBumpMapBits
+	end
+	
+	public func void setBumpMapBits( int bits )
+		if bits < 1
+			throw EInvalidParam.new()
+		end
+		pBumpMapBits = bits
+	end
+	
+	public func int getCountPids()
+		return pCountPids
+	end
+	
+	public func void setCountPids( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pCountPids = count
+	end
+	
+	public func int getCountPalettes()
+		return pCountPalettes
+	end
+	
+	public func void setCountPalettes( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pCountPalettes = count
+	end
+	
+	public func int getOffsetPids()
+		return pOffsetPids
+	end
+	
+	public func void setOffsetPids( int offset )
+		if offset < 0
+			throw EInvalidParam.new()
+		end
+		pOffsetPids = offset
+	end
+	
+	public func int getOffsetPalettes()
+		return pOffsetPalettes
+	end
+	
+	public func void setOffsetPalettes( int offset )
+		if offset < 0
+			throw EInvalidParam.new()
+		end
+		pOffsetPalettes = offset
+	end
+	
+	public func int getOffsetSwapableData()
+		return pOffsetSwapableData
+	end
+	
+	public func void setOffsetSwapableData( int offset )
+		if offset < 0
+			throw EInvalidParam.new()
+		end
+		pOffsetSwapableData = offset
+	end
+	
+	public func int getOffsetStaticData()
+		return pOffsetStaticData
+	end
+	
+	public func void setOffsetStaticData( int offset )
+		if offset < 0
+			throw EInvalidParam.new()
+		end
+		pOffsetStaticData = offset
+	end
+end

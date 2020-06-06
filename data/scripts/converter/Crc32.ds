@@ -1,0 +1,102 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020 )
+			pTable.add( Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License )
+			pTable.add( or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not )
+			pTable.add( write to the Free Software
+ * Foundation )
+			pTable.add( Inc. )
+			pTable.add( 675 Mass Ave )
+			pTable.add( Cambridge )
+			pTable.add( MA 02139 )
+			pTable.add( USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+pin Dragengine.Scenery
+
+
+/**
+ * Crc32 implementation for PID calculation. Trespasser seems to use CRC32b variation.
+ * DragonScript only exposes signed integers. The OP-codes use 32-bit signed integers.
+ * For this reason Crc32 is not directly usable since it relies on unsigned integer
+ * arithmetics. This is simulated using two 16-bit integers.
+ */
+class Crc32
+	private var int pCrcHigh
+	private var int pCrcLow
+	
+	
+	// Create crc calculator.
+	public func new()
+		pCrcHigh = 0hffff
+		pCrcLow = 0hffff
+	end
+	
+	
+	// Calculated crc.
+	public  func int getCrc()
+		return ( ( pCrcHigh ^ 0hffff ) << 16 ) + ( pCrcLow ^ 0hffff )
+	end
+	
+	
+	// Process string.
+	public func void process( String string )
+		var int i, length = string.getLength()
+		for i = 0 to length
+			process( string.getAt( i ) )
+		end
+	end
+	
+	// Process data.
+	public func void process( Array data )
+		data.forEach( block byte each
+			process( each )
+		end )
+	end
+	
+	// Process from file reader.
+	public func void process( FileReader reader )
+		while not reader.eof()
+			process( reader.readByte() cast byte )
+		end
+	end
+	
+	// Process byte.
+	public func void process( byte value )
+		var bool bitSet
+		var int i
+		
+		pCrcLow ^= value
+		
+		for i = 0 to 8
+			bitSet = ( pCrcLow & 1 ) != 0
+			
+			pCrcLow = ( pCrcLow >> 1 ) | ( ( pCrcHigh & 1 ) << 15 )
+			pCrcHigh >>= 1
+			
+			if bitSet
+				pCrcHigh ^= 0hedb8
+				pCrcLow ^= 0h8320
+			end
+		end
+	end
+end

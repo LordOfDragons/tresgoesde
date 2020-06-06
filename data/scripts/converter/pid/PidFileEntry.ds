@@ -1,0 +1,222 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+
+
+/**
+ * Pid file entry..
+ */
+class PidFileEntry
+	enum BitDepth
+		indexed
+		rgb16
+	end
+	
+	enum Transparency
+		none
+		bumpMapped
+		normal
+	end
+	
+	enum Type
+		indexed
+		curvedBumpMap
+		indexedBumpMap
+	end
+	
+	
+	private var int pPid
+	private var int pLength
+	private var int pOffsetSWP
+	private var int pWidth
+	private var int pHeight
+	private var int pStride
+	private var BitDepth pBitCount
+	private var bool pBumpMapped
+	private var Color pDefaultColor
+	private var Transparency pTransparency
+	private var Type pType
+	private var bool pOcclusion
+	private var PidFilePalette pPalette
+	private var int pMipMapped
+	private var int pUnknown
+	private var WeakReference pGroffMaterial
+	
+	
+	public func new()
+		pBitCount = BitDepth.indexed
+		pDefaultColor = Color.black
+		pTransparency = Transparency.none
+		pType = Type.indexed
+		pGroffMaterial = WeakReference.new()
+	end
+	
+	
+	public func int getPid()
+		return pPid
+	end
+	
+	public func void setPid( int pid )
+		pPid = pid
+	end
+	
+	public func int getLength()
+		return pLength
+	end
+	
+	public func void setLength( int length )
+		if length < 0
+			throw EInvalidParam.new()
+		end
+		pLength = length
+	end
+	
+	public func int getOffsetSWP()
+		return pOffsetSWP
+	end
+	
+	public func void setOffsetSWP( int offset )
+		if offset < 0
+			throw EInvalidParam.new()
+		end
+		pOffsetSWP = offset
+	end
+	
+	public func int getWidth()
+		return pWidth
+	end
+	
+	public func void setWidth( int width )
+		if width < 0
+			throw EInvalidParam.new()
+		end
+		pWidth = width
+	end
+	
+	public func int getHeight()
+		return pHeight
+	end
+	
+	public func void setHeight( int height )
+		if height < 0
+			throw EInvalidParam.new()
+		end
+		pHeight = height
+	end
+	
+	public func int getStride()
+		return pStride
+	end
+	
+	public func void setStride( int stride )
+		if stride < 0
+			throw EInvalidParam.new()
+		end
+		pStride = stride
+	end
+	
+	public func BitDepth getBitCount()
+		return pBitCount
+	end
+	
+	public func void setBitCount( BitDepth bitCount )
+		pBitCount = bitCount
+	end
+	
+	public func bool getBumpMapped()
+		return pBumpMapped
+	end
+	
+	public func void setBumpMapped( bool bumpMapped )
+		pBumpMapped = bumpMapped
+	end
+	
+	public func Color getDefaultColor()
+		return pDefaultColor
+	end
+	
+	public func void setDefaultColor( Color color )
+		if color == null
+			throw ENullPointer.new()
+		end
+		pDefaultColor = color
+	end
+	
+	public func Transparency getTransparency()
+		return pTransparency
+	end
+	
+	public func void setTransparency( Transparency transparency )
+		pTransparency = transparency
+	end
+	
+	public func Type getType()
+		return pType
+	end
+	
+	public func void setType( Type type )
+		pType = type
+	end
+	
+	public func bool getOcclusion()
+		return pOcclusion
+	end
+	
+	public func void setOcclusion( bool occlusion )
+		pOcclusion = occlusion
+	end
+	
+	public func PidFilePalette getPalette()
+		return pPalette
+	end
+	
+	public func void setPalette( PidFilePalette palette )
+		pPalette = palette
+	end
+	
+	public func int getMipMapped()
+		return pMipMapped
+	end
+	
+	public func void setMipMapped( int mipMapped )
+		pMipMapped = mipMapped
+	end
+	
+	public func int getUnknown()
+		return pUnknown
+	end
+	
+	public func void setUnknown( int unknown )
+		pUnknown = unknown
+	end
+	
+	public func GroffMaterial getGroffMaterial()
+		return pGroffMaterial.get() cast GroffMaterial
+	end
+	
+	public func void setGroffMaterial( GroffMaterial material )
+		pGroffMaterial.set( material )
+	end
+end

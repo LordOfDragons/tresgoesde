@@ -43,7 +43,7 @@ class SzddReader
 	
 	
 	public func new( String filename )
-		pReader = FileReader.new( filename )
+		pReader = ConverterUtils.readTresFile( filename )
 		
 		pMemoryFile = MemoryFile.new( filename )
 		pFileSize = pMemoryFile.getSize()

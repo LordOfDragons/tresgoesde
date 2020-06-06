@@ -122,6 +122,11 @@ class GroffMaterial
 	end
 	
 	
+	public func PidFileEntry getPidAt( int index )
+		return pPids.getAt( index ) cast PidFileEntry
+	end
+	
+	
 	public func void addColorMap( GroffImage image )
 		pColorMaps.add( image )
 	end
@@ -163,28 +168,67 @@ class GroffMaterial
 	end
 	
 	
-	public func void calculatePids()
+	public func void calculatePids( PidFile pidFile )
 		// see GroffImage.updatePid()
+		pPids.removeAll()
+		
 		var int i
-		
-		pPids = Array.new()
-		
 		for i = 0 to pMaterialCount
-			pPids.add( GroffPid.calculatePid( ( getColorMapAt( i ).getName().getName() \
-				+ getBumpMapAt( i ).getName().getName() ).toLower().replace( '\\', '/' ), \
-					getDiffuseValueAt( i ) ) )
+			var String colorMap = getColorMapAt( i ).getName().getName()
+			var String bumpMap = getBumpMapAt( i ).getName().getName()
+			var String combinedName = colorMap + bumpMap
+			
+			if not combinedName.empty()
+				var float diffuse = getDiffuseValueAt( i )
+				
+				combinedName = combinedName.toLower().replace( '\\', '/' )
+				pPids.add( pidFile.getPidByIdOrNull( PidFile.calculatePid( combinedName, diffuse ) ) )
+				//GameApp.getApp().getConsole().addMessage("pidMaterial(" + colorMap + "," \
+				//	+ bumpMap + "," + diffuse + ") " + PidFile.calculatePid(combinedName, diffuse) + " => " + pPids.getAt(i))
+				
+			else
+				pPids.add( null )
+			end
 		end
 		
 		// hm... i don't know anymore why this is required
+		/*
+		var String combinedName
+		var int i
+		
 		for i = 0 to pMaterialCount
 			var String colorMap = getColorMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
 			var String bumpMap = getBumpMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
 			var String opacityMap = getOpacityMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
 			var float diffuse = getDiffuseValueAt( i )
 			
-			getColorMapAt( i ).setPid( GroffPid.calculatePid( colorMap + bumpMap, diffuse ) )
-			getBumpMapAt( i ).setPid( GroffPid.calculatePid( bumpMap, diffuse ) )
-			getOpacityMapAt( i ).setPid( GroffPid.calculatePid( opacityMap, diffuse ) )
+			if not colorMap.empty()
+				GameApp.getApp().getConsole().addMessage("pidColorMap(" + colorMap + "," + diffuse + ") " \
+					+ PidFile.calculatePid(colorMap, diffuse))
+				getColorMapAt( i ).setPid( pidFile.getPidByIdOrNull( PidFile.calculatePid( colorMap, diffuse ) ) )
+				
+			else
+				getColorMapAt( i ).setPid( null )
+			end
+			
+			if not bumpMap.empty()
+				GameApp.getApp().getConsole().addMessage("pidBumpMap(" + bumpMap + "," + diffuse + ") " \
+					+ PidFile.calculatePid(bumpMap, diffuse))
+				getBumpMapAt( i ).setPid( pidFile.getPidByIdOrNull( PidFile.calculatePid( bumpMap, diffuse ) ) )
+				
+			else
+				getBumpMapAt( i ).setPid( null )
+			end
+			
+			if not opacityMap.empty()
+				GameApp.getApp().getConsole().addMessage("pidOpacityMap(" + opacityMap + "," + diffuse + ") " \
+					+ PidFile.calculatePid(opacityMap, diffuse))
+				getOpacityMapAt( i ).setPid( pidFile.getPidByIdOrNull( PidFile.calculatePid( opacityMap, diffuse ) ) )
+				
+			else
+				getOpacityMapAt( i ).setPid( null )
+			end
 		end
+		*/
 	end
 end

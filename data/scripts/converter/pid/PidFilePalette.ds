@@ -1,0 +1,73 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+
+
+/**
+ * Pid file palette.
+ */
+class PidFilePalette
+	private var int pLength
+	private var int pCountColors
+	private var Array pColors
+	
+	
+	public func new()
+		pLength = 0
+		pCountColors = 0
+		pColors = Array.new()
+	end
+	
+	
+	public func int getLength()
+		return pLength
+	end
+	
+	public func void setLength( int length )
+		if length < 0
+			throw EInvalidParam.new()
+		end
+		pLength = length
+	end
+	
+	public func int getCountColors()
+		return pCountColors
+	end
+	
+	public func void setCountColors( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pCountColors = count
+	end
+	
+	
+	public func void addColor( Color color )
+		if color == null
+			throw ENullPointer.new()
+		end
+		pColors.add( color )
+	end
+end

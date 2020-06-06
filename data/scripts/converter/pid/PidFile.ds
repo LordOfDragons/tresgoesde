@@ -22,13 +22,71 @@
 namespace TresGoesDE
 
 
-pin Dragengine
+pin Dragengine.Utils
 
 
 /**
- * Groff pid calculator.
+ * Pid file.
  */
-abstract class GroffPid
+class PidFile
+	private var String pFilename
+	private var PidFileHeader pHeader
+	private var Array pPalettes
+	private var Array pPids
+	private var Dictionary pPidsByID
+	
+	
+	public func new( String filename )
+		pFilename = filename
+		pHeader = PidFileHeader.new()
+		pPalettes = Array.new()
+		pPids = Array.new()
+		pPidsByID = Dictionary.new()
+	end
+	
+	
+	public func String getFilename()
+		return pFilename
+	end
+	
+	public func PidFileHeader getHeader()
+		return pHeader
+	end
+	
+	
+	public func void addPalette( PidFilePalette palette )
+		if palette == null
+			throw ENullPointer.new()
+		end
+		pPalettes.add( palette )
+	end
+	
+	public func PidFilePalette getPaletteAt( int index )
+		return pPalettes.getAt( index ) cast PidFilePalette
+	end
+	
+	
+	public func void addPid( PidFileEntry pid )
+		if pid == null
+			throw ENullPointer.new()
+		end
+		pPids.add( pid )
+		pPidsByID.setAt( pid.getPid(), pid )
+	end
+	
+	public func PidFileEntry getPidById( int pid )
+		return pPidsByID.getAt( pid ) cast PidFileEntry
+	end
+	
+	public func PidFileEntry getPidByIdOrNull( int pid )
+		return pPidsByID.getAt( pid, null ) cast PidFileEntry
+	end
+	
+	public func void forEachPid( Block ablock )
+		pPids.forEach( ablock )
+	end
+	
+	
 	static public func int calculatePid( String string, float value )
 		// in the original code the second value added ontop of it are the first 4 bytes of
 		// the CMaterial object. the first 4 bytes are occupied by the float rvDiffuse value
@@ -43,6 +101,12 @@ abstract class GroffPid
 		var Crc32 crc = Crc32.new()
 		crc.process( data.getReader() )
 		
+		return crc.getCrc()
+	end
+	
+	static public func int calculatePid( String string )
+		var Crc32 crc = Crc32.new()
+		crc.process( string )
 		return crc.getCrc()
 	end
 end
