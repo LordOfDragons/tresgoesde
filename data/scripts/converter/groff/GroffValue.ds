@@ -1,0 +1,96 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+/**
+ * Groff value.
+ */
+class GroffValue
+	enum Type
+		boolean
+		character
+		integer
+		floating
+		string
+		group
+	end
+	
+	
+	private var int pId
+	private var GroffValueName pName
+	private var Type pType
+	private var Object pData
+	
+	
+	public func new()
+		pId = 0
+		pType = Type.floating
+	end
+	
+	
+	public func int getId()
+		return pId
+	end
+	
+	public func void setId( int id )
+		pId = id
+	end
+	
+	public func GroffValueName getName()
+		return pName
+	end
+	
+	public func void setName( GroffValueName name )
+		pName = name
+	end
+	
+	public func Type getType()
+		return pType
+	end
+	
+	public func void setType( Type type )
+		pType = type
+	end
+	
+	public func Object getData()
+		return pData
+	end
+	
+	public func float getDataFloat()
+		return pData cast float
+	end
+	
+	public func void setData( Object data )
+		pData = data
+	end
+	
+	
+	public func GroffValue getProperty( GroffValueName name )
+		if pType == Type.group
+			return ( pData cast Array ).find( block GroffValue each
+				return each.pName == name
+			end ) cast GroffValue
+		end
+		return null
+	end
+end

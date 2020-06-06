@@ -1,0 +1,190 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+
+
+/**
+ * Groff material.
+ */
+class GroffMaterial
+	private var int pId
+	private var int pMaterialCount
+	private var Array pPids
+	private var Array pColorMaps
+	private var Array pOpacityMaps
+	private var Array pBumpMaps
+	private var Array pColors
+	private var int pAmbientLighting
+	private var int pDiffuseLighting
+	private var int pSpecularLighting
+	private var int pOpacity
+	private var int pBumpiness
+	private var Array pDiffuseValues
+	
+	
+	public func new()
+		pId = 0
+		pMaterialCount = 0
+		pPids = Array.new()
+		pColorMaps = Array.new()
+		pOpacityMaps = Array.new()
+		pBumpMaps = Array.new()
+		pColors = Array.new()
+		pAmbientLighting = 0
+		pDiffuseLighting = 0
+		pSpecularLighting = 0
+		pOpacity = 0
+		pBumpiness = 0
+		pDiffuseValues = Array.new()
+	end
+	
+	
+	public func int getId()
+		return pId
+	end
+	
+	public func void setId( int id )
+		pId = id
+	end
+	
+	public func int getMaterialCount()
+		return pMaterialCount
+	end
+	
+	public func void setMaterialCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pMaterialCount = count
+		pDiffuseValues = Array.new( count, 1.0 )
+	end
+	
+	public func int getAmbientLighting()
+		return pAmbientLighting
+	end
+	
+	public func void setAmbientLighting( int lighting )
+		pAmbientLighting = lighting
+	end
+	
+	public func int getDiffuseLighting()
+		return pDiffuseLighting
+	end
+	
+	public func void setDiffuseLighting( int lighting )
+		pDiffuseLighting = lighting
+	end
+	
+	public func int getSpecularLighting()
+		return pSpecularLighting
+	end
+	
+	public func void setSpecularLighting( int lighting )
+		pSpecularLighting = lighting
+	end
+	
+	public func int getOpacity()
+		return pOpacity
+	end
+	
+	public func void setOpacity( int lighting )
+		pOpacity = lighting
+	end
+	
+	public func int getBumpiness()
+		return pBumpiness
+	end
+	
+	public func void setBumpiness( int bumpiness )
+		pBumpiness = bumpiness
+	end
+	
+	
+	public func void addColorMap( GroffImage image )
+		pColorMaps.add( image )
+	end
+	
+	public func GroffImage getColorMapAt( int index )
+		return pColorMaps.getAt( index ) cast GroffImage
+	end
+	
+	
+	public func void addOpacityMap( GroffImage image )
+		pOpacityMaps.add( image )
+	end
+	
+	public func GroffImage getOpacityMapAt( int index )
+		return pOpacityMaps.getAt( index ) cast GroffImage
+	end
+	
+	
+	public func void addBumpMap( GroffImage image )
+		pBumpMaps.add( image )
+	end
+	
+	public func GroffImage getBumpMapAt( int index )
+		return pBumpMaps.getAt( index ) cast GroffImage
+	end
+	
+	
+	public func float getDiffuseValueAt( int index )
+		return pDiffuseValues.getAt( index ) cast float
+	end
+	
+	public func void setDiffuseValueAt( int index, float value )
+		pDiffuseValues.setAt( index, value )
+	end
+	
+	
+	public func void addColor( Color color )
+		pColors.add( color )
+	end
+	
+	
+	public func void calculatePids()
+		// see GroffImage.updatePid()
+		var int i
+		
+		pPids = Array.new()
+		
+		for i = 0 to pMaterialCount
+			pPids.add( GroffPid.calculatePid( ( getColorMapAt( i ).getName().getName() \
+				+ getBumpMapAt( i ).getName().getName() ).toLower().replace( '\\', '/' ), \
+					getDiffuseValueAt( i ) ) )
+		end
+		
+		// hm... i don't know anymore why this is required
+		for i = 0 to pMaterialCount
+			var String colorMap = getColorMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
+			var String bumpMap = getBumpMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
+			var String opacityMap = getOpacityMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
+			var float diffuse = getDiffuseValueAt( i )
+			
+			getColorMapAt( i ).setPid( GroffPid.calculatePid( colorMap + bumpMap, diffuse ) )
+			getBumpMapAt( i ).setPid( GroffPid.calculatePid( bumpMap, diffuse ) )
+			getOpacityMapAt( i ).setPid( GroffPid.calculatePid( opacityMap, diffuse ) )
+		end
+	end
+end

@@ -30,13 +30,14 @@ pin Dragengine.Utils
 /**
  * Converter from Trespasser to Drag[en]gine.
  */
-class TresDeConverter
-	public var String pathTrespasser //<! Overlay path to located trespasser data in
-	public var String pathDragengine //<! Overlay path to store dragengine data in
+class Converter
+	private var String pPathTrespasser
+	private var String pPathDragengine
+	
 	
 	public func new()
-		pathTrespasser = "/converter/trespasser"
-		pathDragengine = "/converter/dragengine"
+		pPathTrespasser = "/converter/trespasser"
+		pPathDragengine = "/converter/dragengine"
 		
 		// ensure directory exist so the user finds them easily. this is done by writing
 		// a readme file. the game engine ensures the directory where the file is located
@@ -47,6 +48,19 @@ class TresDeConverter
 		end
 	end
 	
+	
+	
+	// Overlay path to located trespasser data in
+	public func String getPathTrespasser()
+		return pPathTrespasser
+	end
+	
+	// Overlay path to store dragengine data in
+	public func String getPathDragengine()
+		return pPathDragengine
+	end
+	
+	
 	// fill list model with file titles of converted scene.
 	public func void fillModelConvertedScenes( DefaultListModel model )
 		model.removeAll()
@@ -56,9 +70,9 @@ class TresDeConverter
 	public func void fillModelConvertableScenes( DefaultListModel model )
 		model.removeAll()
 		
-		FileSystem.searchFiles( pathTrespasser, true, block String path, FileType type
+		FileSystem.searchFiles( pPathTrespasser, true, block String path, FileType type
 			if type == FileType.file and FileSystem.pathMatchesPattern( File.new( path ).getName(), "*.scn" )
-				model.add( File.new( path ).getName().substring( 0, -4 ) )
+				model.add( path.substring( pPathTrespasser.getLength() + 1, -4 ) )
 			end
 			return true // continue(true) or stop(false)
 		end )

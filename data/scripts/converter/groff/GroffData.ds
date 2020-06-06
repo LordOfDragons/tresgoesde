@@ -1,0 +1,112 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+/**
+ * Groff data.
+ */
+class GroffData
+	enum Type
+		header
+		region
+		model
+		geometry
+		mapping
+		material
+		bitmap
+		palette
+		physics
+		ai
+		sound
+		design
+		trigger
+		valueTable
+		dataUpdate
+		unknown
+	end
+	
+	
+	private var GroffName pName
+	private var int pOffset
+	private var int pLength
+	private var Type pType
+	private var int pHandle
+	
+	
+	public func new()
+		pOffset = 0
+		pLength = 0
+		pType = Type.header
+		pHandle = 0
+	end
+	
+	
+	public func GroffName getName()
+		return pName
+	end
+	
+	public func void setName( GroffName name )
+		pName = name
+	end
+	
+	public func int getOffset()
+		return pOffset
+	end
+	
+	public func void setOffset( int offset )
+		if offset < 0
+			throw EInvalidParam.new()
+		end
+		pOffset = offset
+	end
+	
+	public func int getLength()
+		return pLength
+	end
+	
+	public func void setLength( int length )
+		if length < 0
+			throw EInvalidParam.new()
+		end
+		pLength = length
+	end
+	
+	public func Type getType()
+		return pType
+	end
+	
+	public func void setType( Type type )
+		if type == null
+			throw EInvalidParam.new()
+		end
+		pType = type
+	end
+	
+	public func int getHandle()
+		return pHandle
+	end
+	
+	public func void setHandle( int handle )
+		pHandle = handle
+	end
+end

@@ -1,0 +1,238 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+pin Dragengine.Scenery
+
+
+/**
+ * Groff geometry.
+ */
+class GroffGeometry
+	enum Format
+		type1
+		type2
+	end
+	
+	
+	private var int pId
+	private var int pVertexCount
+	private var int pFaceCount
+	private var int pCornerCount
+	private var int pRealCornerCount
+	private var int pNormalCount
+	private var Array pVertices
+	private var Array pFaces
+	private var int pWrapVertexCount
+	private var Array pWrapVertices
+	private var Vector pPivotOffset
+	private var Color pDefaultColor
+	private var int pMaterial
+	private var int pMaterialCount
+	private var Format pFormat
+	private var Vector pBoundingBoxMin
+	private var Vector pBoundingBoxMax
+	
+	
+	public func new()
+		pId = 0
+		pVertexCount = 0
+		pFaceCount = 0
+		pCornerCount = 0
+		pRealCornerCount = 0
+		pNormalCount = 0
+		pVertices = Array.new()
+		pFaces = Array.new()
+		pWrapVertexCount = 0
+		pWrapVertices = Array.new()
+		pMaterial = 0
+		pMaterialCount = 1
+		pFormat = Format.type1
+	end
+	
+	
+	public func int getId()
+		return pId
+	end
+	
+	public func void setId( int id )
+		pId = id
+	end
+	
+	public func int getVertexCount()
+		return pVertexCount
+	end
+	
+	public func void setVertexCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pVertexCount = count
+	end
+	
+	public func int getFaceCount()
+		return pFaceCount
+	end
+	
+	public func void setFaceCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pFaceCount = count
+	end
+	
+	public func int getCornerCount()
+		return pCornerCount
+	end
+	
+	public func void setCornerCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pCornerCount = count
+	end
+	
+	public func int getRealCornerCount()
+		return pRealCornerCount
+	end
+	
+	public func void setRealCornerCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pRealCornerCount = count
+	end
+	
+	public func int getNormalCount()
+		return pNormalCount
+	end
+	
+	public func void setNormalCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pNormalCount = count
+	end
+	
+	public func int getWrapVertexCount()
+		return pWrapVertexCount
+	end
+	
+	public func void setWrapVertexCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pWrapVertexCount = count
+	end
+	
+	public func Vector getPivotOffset()
+		return pPivotOffset
+	end
+	
+	public func void setPivotOffset( Vector pivotOffset )
+		pPivotOffset = pivotOffset
+	end
+	
+	public func Color getDefaultColor()
+		return pDefaultColor
+	end
+	
+	public func void setDefaultColor( Color color )
+		pDefaultColor = color
+	end
+	
+	public func int getMaterial()
+		return pMaterial
+	end
+	
+	public func void setMaterial( int material )
+		pMaterial = material
+	end
+	
+	public func int getMaterialCount()
+		return pMaterialCount
+	end
+	
+	public func void setMaterialCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pMaterialCount = count
+	end
+	
+	public func Format getFormat()
+		return pFormat
+	end
+	
+	public func void setFormat( Format format )
+		pFormat = format
+	end
+	
+	
+	public func Vector getBoundingBoxMin()
+		return pBoundingBoxMin
+	end
+	
+	public func Vector getBoundingBoxMax()
+		return pBoundingBoxMax
+	end
+	
+	public func void calculateBoundingBox()
+		pBoundingBoxMin = pVertices.fold( block Vector a, Vector b
+			return a.smallest( b )
+		end ) cast Vector
+		
+		pBoundingBoxMax = pVertices.fold( block Vector a, Vector b
+			return a.largest( b )
+		end ) cast Vector
+	end
+	
+	
+	public func void addFace( GroffGeometryFace face )
+		if face == null
+			throw ENullPointer.new()
+		end
+		pFaces.add( face )
+	end
+	
+	public func GroffGeometryFace getFaceAt( int index )
+		return pFaces.getAt( index ) cast GroffGeometryFace
+	end
+	
+	
+	public func void addVertex( Vector vertex )
+		if vertex == null
+			throw ENullPointer.new()
+		end
+		pVertices.add( vertex )
+	end
+	
+	
+	public func void addWrapVertex( Vector vertex )
+		if vertex == null
+			throw ENullPointer.new()
+		end
+		pWrapVertices.add( vertex )
+	end
+end

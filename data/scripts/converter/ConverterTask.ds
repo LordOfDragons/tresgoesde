@@ -1,0 +1,352 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Task converter from Trespasser to Drag[en]gine. Supports stepping since converting
+ * takes some time. Updates progress using a listener.
+ */
+class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener
+	// Listener used to shows progress update.
+	interface Listener
+		// Print out log entry.
+		func void log( String message )
+		
+		// Converting finished successfully.
+		func void succeeded()
+		
+		// Converting failed with an exception.
+		func void failed( Exception exception )
+	end
+	
+	// Task state
+	private enum State
+		clear //<! Clear output directory
+		loadGroff //<! Load groff file
+		mergeMappings //<! Merge mappings into geometry
+		propagateDiffuse //<! Propagate 'Diffuse' property in instances to materials
+		propagateSubMaterial //<! Propagate 'SubMaterialXX' properties in instances to materials
+		done //<! Task is done
+	end
+	
+	
+	private var String pBaseFilename //<! Filename of scene to convert
+	private var Listener pListener
+	
+	private var State pState
+	private var String pMapName
+	private var File pInputDir
+	private var File pOutputDir
+	private var GroffLoader pGroffLoader
+	private var Groff pGroff
+	
+	private var int pNextIndex
+	private var Array pCollector
+	private var GroffValueName pPropertyNameDiffuse
+	private var Array pPropertySubMaterial
+	
+	private var String pPathSCN
+	private var String pPathGRF
+	private var String pPathPID
+	private var String pPathSPZ
+	private var String pPathSWP
+	private var String pPathWTD
+	
+	
+	
+	// Create converter task.
+	public func new( String baseFilename, Listener listener )
+		pBaseFilename = baseFilename
+		pMapName = File.new( baseFilename ).getName()
+		pInputDir = File.new( GameApp.getGameApp().getConverter().getPathTrespasser() ) \
+			+ File.new( baseFilename ).getParent()
+		pOutputDir = File.new( GameApp.getGameApp().getConverter().getPathDragengine(), pMapName )
+		pListener = listener
+		pState = State.clear
+	end
+	
+	
+	// Step converter task
+	public func void frameUpdate( float elapsed )
+		try
+			select pState
+			case State.clear
+				clear()
+				
+			case State.loadGroff
+				loadGroff()
+				
+			case State.mergeMappings
+				mergeMappings()
+				
+			case State.propagateDiffuse
+				propagateDiffuse()
+				
+			case State.propagateSubMaterial
+				propagateSubMaterial()
+				
+			case State.done
+				giveUp()
+				pListener = null
+			end
+			
+		catch Exception e
+			failed( e )
+		end
+	end
+	
+	// Cancel task
+	public func void cancel()
+		pListener.log( "Cancelled. Cleaning up..." )
+		if FileSystem.existsFile( pOutputDir.getPath() )
+			deleteDirectory( pOutputDir.getPath() )
+		end
+		pListener.failed( Exception.new( "Cancelled" ) )
+		cleanUp()
+	end
+	
+	
+	// Clear output directory
+	private func void clear()
+		pListener.log( "Delete output directory..." )
+		if FileSystem.existsFile( pOutputDir.getPath() )
+			deleteDirectory( pOutputDir.getPath() )
+		end
+		pState = State.loadGroff
+	end
+	
+	private func void deleteDirectory( String directory )
+		var Array files = Array.new()
+		
+		FileSystem.searchFiles( directory, false, block String path, FileType type
+			select type
+			case FileType.file
+				files.add( path )
+				
+			case FileType.directory
+				deleteDirectory( path )
+				files.add( path )
+			end
+			return true
+		end )
+		
+		files.forEach( block String each
+			FileSystem.deleteFile( each )
+		end )
+		FileSystem.deleteFile( directory )
+	end
+	
+	// Load groff file
+	private func void loadGroff()
+		if pGroffLoader != null
+			return
+		end
+		
+		pListener.log( "Load GRF " + pMapName + ".grf ..." )
+		pGroffLoader = GroffLoader.new( ( pInputDir + ( pMapName + ".grf" ) ).getPath(), this )
+	end
+	
+	public func void finished( Groff groff )
+		pGroff = groff
+		pGroffLoader = null
+		
+		pState = State.mergeMappings
+		pNextIndex = -1
+	end
+	
+	// Merge groff mappings into geometry.
+	private func void mergeMappings()
+		if pNextIndex == -1
+			pListener.log( "Merge Mappings Into Geometry..." )
+			pCollector = Array.new()
+			pGroff.forEachModel( block GroffModel each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffModel model
+			var GroffMapping mapping = model.getMapping()
+			if mapping != null and mapping.getVertexCount() > 0 and mapping.getFaceCount() > 0
+				var GroffGeometry geometry = model.getGeometry()
+				var int i, j, count = mapping.getFaceCount()
+				for i = 0 to count
+					var GroffGeometryFace face = geometry.getFaceAt( i )
+					face.setMaterial( mapping.getFaceMaterialAt( i ) )
+					if face.getMaterial() >= geometry.getMaterialCount()
+						geometry.setMaterialCount( face.getMaterial() + 1 )
+					end
+					for j = 0 to 3
+						face.setTexCoordAt( j, mapping.getTexCoordAt( mapping.getFaceVertexAt( i * 3 + j ) ) )
+					end
+				end
+			end
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.propagateDiffuse
+			pNextIndex = -1
+		end
+	end
+	
+	// Propagate 'Diffuse' property in instances to materials
+	private func void propagateDiffuse()
+		if pNextIndex == -1
+			pListener.log( "Propage 'Diffuse' properties..." )
+			pCollector = Array.new()
+			pPropertyNameDiffuse = pGroff.getValueNameByNameOrNull( "Diffuse" )
+			if pPropertyNameDiffuse != null
+				pGroff.forEachInstance( block GroffInstance each
+					pCollector.add( each )
+				end )
+			end
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffInstance instance
+			var GroffValue value = instance.getValueTable()
+			if value != null
+				var GroffValue property = value.getProperty( pPropertyNameDiffuse )
+				if property != null
+					var GroffMapping mapping = instance.getModel().getMapping()
+					if mapping != null
+						var GroffMaterial material = mapping.getMaterial()
+						if material != null
+							var int i, count = material.getMaterialCount()
+							var float value = property.getDataFloat()
+							for i = 0 to count
+								material.setDiffuseValueAt( i, value )
+							end
+						end
+					end
+				end
+			end
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.propagateSubMaterial
+			pNextIndex = -1
+		end
+	end
+	
+	// Propagate 'SubMaterialXX' properties in instances to materials
+	private func void propagateSubMaterial()
+		if pNextIndex == -1
+			pListener.log( "Propage 'SubMaterialXX' properties..." )
+			
+			pPropertySubMaterial = Array.new()
+			var String name
+			var int i
+			for i = 0 to 50
+				name = "SubMaterial"
+				if i < 10
+					name = name + "0" + ( i + 1 )
+				else
+					name = name + ( i + 1 )
+				end
+				pPropertySubMaterial.add( pGroff.getValueNameByNameOrNull( name ) )
+			end
+			
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffInstance instance
+			var GroffValue value = instance.getValueTable()
+			if value != null
+				var GroffMapping mapping = instance.getModel().getMapping()
+				if mapping != null
+					var GroffMaterial material = mapping.getMaterial()
+					if material != null
+						var int i
+						for i = 0 to material.getMaterialCount()
+							var GroffValueName name = pPropertySubMaterial.getAt( i ) cast GroffValueName
+							if name != null
+								var GroffValue property = value.getProperty( name )
+								if property != null
+									property = value.getProperty( pPropertyNameDiffuse )
+									if property != null
+										material.setDiffuseValueAt( i, property.getDataFloat() )
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.done
+			
+			pListener.log( "Done" )
+			pListener.succeeded()
+			cleanUp()
+			
+			/* next
+			for instance in self.instances:
+				instance.processValues(self)
+			*/
+		end
+	end
+	
+	
+	
+	// Print out log entry.
+	public func void log( String message )
+		pListener.log( message )
+	end
+	
+	// Failed
+	public func void failed( Exception exception )
+		pListener.failed( exception )
+		cleanUp()
+		if FileSystem.existsFile( pOutputDir.getPath() )
+			deleteDirectory( pOutputDir.getPath() )
+		end
+	end
+	
+	// Clean up
+	private func void cleanUp()
+		giveUp()
+		pListener = null
+		pState = State.done
+		if pGroffLoader != null
+			pGroffLoader.cancel()
+			pGroffLoader = null
+		end
+	end
+end

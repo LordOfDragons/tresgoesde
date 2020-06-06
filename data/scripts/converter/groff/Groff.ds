@@ -1,0 +1,269 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+/**
+ * Groff file.
+ */
+class Groff
+	private var String pFilename
+	private var GroffHeader pHeader
+	private var Array pDataTable
+	private var Dictionary pDataTableByHandle
+	private var Array pNameTable
+	private var Dictionary pNameTableByID
+	private var Dictionary pNameTableByName
+	private var Array pInstances
+	private var int pHandleValueTable
+	private var Array pValueNameTable
+	private var Dictionary pValueNameTableByID
+	private var Dictionary pValueNameTableByName
+	private var Array pValueTable
+	private var Dictionary pValueTableByID
+	private var Array pModelTable
+	private var Dictionary pModelTableByID
+	private var Dictionary pModelTableByName
+	private var Array pGeometryTable
+	private var Dictionary pGeometryTableByID
+	private var Array pMappingTable
+	private var Dictionary pMappingTableByID
+	private var Array pMaterialTable
+	private var Dictionary pMaterialTableByID
+	private var Array pImageTable
+	private var Dictionary pImageTableByID
+	private var Dictionary pImageTableByPID
+	
+	
+	public func new( String filename )
+		pFilename = filename
+		
+		pHeader = GroffHeader.new()
+		pDataTable = Array.new()
+		pDataTableByHandle = Dictionary.new()
+		pNameTable = Array.new()
+		pNameTableByID = Dictionary.new()
+		pNameTableByName = Dictionary.new()
+		pInstances = Array.new()
+		pHandleValueTable = 0
+		pValueNameTable = Array.new()
+		pValueNameTableByID = Dictionary.new()
+		pValueNameTableByName = Dictionary.new()
+		pValueTable = Array.new()
+		pValueTableByID = Dictionary.new()
+		pModelTable = Array.new()
+		pModelTableByID = Dictionary.new()
+		pModelTableByName = Dictionary.new()
+		pGeometryTable = Array.new()
+		pGeometryTableByID = Dictionary.new()
+		pMappingTable = Array.new()
+		pMappingTableByID = Dictionary.new()
+		pMaterialTable = Array.new()
+		pMaterialTableByID = Dictionary.new()
+		pImageTable = Array.new()
+		pImageTableByID = Dictionary.new()
+		pImageTableByPID = Dictionary.new()
+	end
+	
+	
+	public func String getFilename()
+		return pFilename
+	end
+	
+	public func GroffHeader getHeader()
+		return pHeader
+	end
+	
+	public func int getHandleValueTable()
+		return pHandleValueTable
+	end
+	
+	public func void setHandleValueTable( int handleValueTable )
+		pHandleValueTable = handleValueTable
+	end
+	
+	
+	public func void addData( GroffData data )
+		pDataTable.add( data )
+		pDataTableByHandle.setAt( data.getHandle(), data )
+	end
+	
+	public func void forEachData( Block ablock )
+		pDataTable.forEach( ablock )
+	end
+	
+	public func void forEachData( GroffData.Type type, Block ablock )
+		pDataTable.forEach( block GroffData each
+			if each.getType() == type
+				ablock.run( each )
+			end
+		end )
+	end
+	
+	public func Array collectData( GroffData.Type type )
+		return pDataTable.collect( block GroffData each
+			return each.getType() == type
+		end )
+	end
+	
+	
+	public func void addName( GroffName name )
+		pNameTable.add( name )
+		pNameTableByID.setAt( name.getId(), name )
+		pNameTableByName.setAt( name.getName(), name )
+	end
+	
+	public func GroffName getNameById( int id )
+		return pNameTableByID.getAt( id ) cast GroffName
+	end
+	
+	
+	public func void addValueName( GroffValueName valueName )
+		pValueNameTable.add( valueName )
+		pValueNameTableByID.setAt( valueName.getId(), valueName )
+		pValueNameTableByName.setAt( valueName.getName(), valueName )
+	end
+	
+	public  func GroffValueName getValueNameById( int id )
+		return pValueNameTableByID.getAt( id ) cast GroffValueName
+	end
+	
+	public  func GroffValueName getValueNameByNameOrNull( String name )
+		return pValueNameTableByName.getAt( name, null ) cast GroffValueName
+	end
+	
+	
+	public func void addValue( GroffValue value )
+		pValueTable.add( value )
+		pValueTableByID.setAt( value.getId(), value )
+	end
+	
+	public  func GroffValue getValueById( int id )
+		return pValueTableByID.getAt( id ) cast GroffValue
+	end
+	
+	public  func GroffValue getValueByIdOrNull( int id )
+		return pValueTableByID.getAt( id, null ) cast GroffValue
+	end
+	
+	public func void forEachValue( Block ablock )
+		pValueTable.forEach( ablock )
+	end
+	
+	public func void forEachValue( GroffValue.Type type, Block ablock )
+		pValueTable.forEach( block GroffValue each
+			if each.getType() == type
+				ablock.run( each )
+			end
+		end )
+	end
+	
+	
+	public func void addGeometry( GroffGeometry geometry )
+		pGeometryTable.add( geometry )
+		pGeometryTableByID.setAt( geometry.getId(), geometry )
+	end
+	
+	public func void forEachGeometry( Block ablock )
+		pGeometryTable.forEach( ablock )
+	end
+	
+	public func GroffGeometry getGeometryById( int id )
+		return pGeometryTableByID.getAt( id ) cast GroffGeometry
+	end
+	
+	public func GroffGeometry getGeometryByIdOrNull( int id )
+		return pGeometryTableByID.getAt( id, null ) cast GroffGeometry
+	end
+	
+	
+	public func void addMapping( GroffMapping mapping )
+		pMappingTable.add( mapping )
+		pMappingTableByID.setAt( mapping.getId(), mapping )
+	end
+	
+	public func void forEachMapping( Block ablock )
+		pMappingTable.forEach( ablock )
+	end
+	
+	public func GroffMapping getMappingById( int id )
+		return pMappingTableByID.getAt( id ) cast GroffMapping
+	end
+	
+	public func GroffMapping getMappingByIdOrNull( int id )
+		return pMappingTableByID.getAt( id, null ) cast GroffMapping
+	end
+	
+	
+	public func void addMaterial( GroffMaterial material )
+		pMaterialTable.add( material )
+		pMaterialTableByID.setAt( material.getId(), material )
+	end
+	
+	public func void forEachMaterial( Block ablock )
+		pMaterialTable.forEach( ablock )
+	end
+	
+	public func GroffMaterial getMaterialById( int id )
+		return pMaterialTableByID.getAt( id ) cast GroffMaterial
+	end
+	
+	
+	public func void addModel( GroffModel model )
+		pModelTable.add( model )
+		pModelTableByID.setAt( model.getId(), model )
+		pModelTableByName.setAt( model.getName().getName(), model )
+	end
+	
+	public func void forEachModel( Block ablock )
+		pModelTable.forEach( ablock )
+	end
+	
+	public func GroffModel getModelById( int id )
+		return pModelTableByID.getAt( id ) cast GroffModel
+	end
+	
+	public func GroffModel getModelByIdOrNull( int id )
+		return pModelTableByID.getAt( id, null ) cast GroffModel
+	end
+	
+	
+	public func GroffImage getOrAddImage( int id )
+		var GroffImage image = pImageTableByID.getAt( id, null ) cast GroffImage
+		if image == null
+			image = GroffImage.new( id, getNameById( id ) )
+			pImageTable.add( image )
+			pImageTableByID.setAt( id, image )
+			pImageTableByPID.setAt( image.getPid(), image )
+		end
+		return image
+	end
+	
+	
+	public func void addInstance( GroffInstance instance )
+		pInstances.add( instance )
+	end
+	
+	public func void forEachInstance( Block ablock )
+		pInstances.forEach( ablock )
+	end
+end

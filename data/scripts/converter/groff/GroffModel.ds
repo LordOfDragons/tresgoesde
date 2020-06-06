@@ -1,0 +1,80 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+/**
+ * Groff model.
+ */
+class GroffModel
+	private var int pId
+	private var GroffName pName
+	private var GroffGeometry pGeometry
+	private var GroffMapping pMapping
+	private var Float pBaseScale
+	
+	
+	public func new()
+		pId = 0
+	end
+	
+	
+	public func int getId()
+		return pId
+	end
+	
+	public func void setId( int id )
+		pId = id
+	end
+	
+	public func GroffName getName()
+		return pName
+	end
+	
+	public func void setName( GroffName name )
+		pName = name
+	end
+	
+	public func GroffGeometry getGeometry()
+		return pGeometry
+	end
+	
+	public func void setGeometry( GroffGeometry geometry )
+		pGeometry = geometry
+	end
+	
+	public func GroffMapping getMapping()
+		return pMapping
+	end
+	
+	public func void setMapping( GroffMapping mapping )
+		pMapping = mapping
+	end
+	
+	public func Float getBaseScale()
+		return pBaseScale
+	end
+	
+	public func void setBaseScale( Float baseScale )
+		pBaseScale = baseScale
+	end
+end

@@ -1,0 +1,121 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Scenery
+
+
+/**
+ * Groff geometry face.
+ */
+class GroffGeometryFace
+	private var Array pVertices
+	private var Array pNormals
+	private var Array pTexCoords
+	private var Vector pFaceNormal
+	private var float pFaceDistance
+	private var int pMaterial
+	private var bool pSmoothShading
+	private var int pSomething
+	
+	
+	public func new()
+		pVertices = Array.new()
+		pNormals = Array.new()
+		pTexCoords = Array.new()
+		pFaceDistance = 0
+		pMaterial = 0
+		pSmoothShading = true
+		pSomething = 0
+	end
+	
+	
+	public func Vector getFaceNormal()
+		return pFaceNormal
+	end
+	
+	public func void setFaceNormal( Vector normal )
+		pFaceNormal = normal
+	end
+	
+	public func float getFaceDistance()
+		return pFaceDistance
+	end
+	
+	public func void setFaceDistance( float distance )
+		pFaceDistance = DEMath.max( distance, 0.0 )
+	end
+	
+	public func int getMaterial()
+		return pMaterial
+	end
+	
+	public func void setMaterial( int material )
+		pMaterial = material
+	end
+	
+	public func bool getSmoothShading()
+		return pSmoothShading
+	end
+	
+	public func void setSmoothShading( bool smoothShading )
+		pSmoothShading = smoothShading
+	end
+	
+	public func int getSomething()
+		return pSomething
+	end
+	
+	public func void setSomething( int something )
+		pSomething = something
+	end
+	
+	
+	public func void addVertex( int vertex )
+		pVertices.add( vertex )
+	end
+	
+	
+	public func void addTexCoord( Vector2 texCoord )
+		if texCoord == null
+			throw ENullPointer.new()
+		end
+		pTexCoords.add( texCoord )
+	end
+	
+	public func Vector2 getTexCoordAt( int index )
+		return pTexCoords.getAt( index ) cast Vector2
+	end
+	
+	public func void setTexCoordAt( int index, Vector2 texCoord )
+		if texCoord == null
+			throw ENullPointer.new()
+		end
+		pTexCoords.setAt( index, texCoord )
+	end
+	
+	
+	public func void addNormal( int normal )
+		pNormals.add( normal )
+	end
+end

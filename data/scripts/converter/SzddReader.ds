@@ -1,0 +1,141 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Reader for SZDD compressed files.
+ */
+class SzddReader
+	private var FileReader pReader
+	private var MemoryFile pMemoryFile
+	private var FileReader pMemoryFileReader
+	private var FileWriter pMemoryFileWriter
+	private var int pFileSize
+	private var Array pWindow
+	private var int pPosition
+	private var int pLenUCData
+	private var int pUnpackedSize
+	
+	
+	public func new( String filename )
+		pReader = FileReader.new( filename )
+		
+		pMemoryFile = MemoryFile.new( filename )
+		pFileSize = pMemoryFile.getSize()
+		
+		pMemoryFileReader = pMemoryFile.getReader()
+		pMemoryFileWriter = pMemoryFile.getWriter( false )
+		
+		var int signature1 = pReader.readUInt()
+		var int signature2 = pReader.readUInt()
+		if signature1 != 0h44445A53 or signature2 != 0h3327F088
+			throw EInvalidParam.new( "invalid signature" )
+		end
+		
+		var int compressionMode = pReader.readByte()
+		if compressionMode != 0h41
+			throw EInvalidParam.new( "invalid compression mode" )
+		end
+		
+		pReader.readByte() // end character
+		pUnpackedSize = pReader.readUInt()
+		
+		pWindow = Array.new( 4096, ' ' )
+		pPosition = 4096 - 16
+		pLenUCData = 0
+	end
+	
+	
+	// Memory file containing decompressed data.
+	public func MemoryFile getMemoryFile()
+		return pMemoryFile
+	end
+	
+	
+	// Decompress next chunk. Returns true if more data needs to decompressed
+	// or false if the end of file has been reached.
+	public func bool decompress()
+		var int matchpos, matchlen, i, cbit, chunkCount
+		var byte control, value
+		
+		for chunkCount = 0 to 100
+			if pReader.eof()
+				break
+			end
+			control = pReader.readByte() cast byte
+			
+			cbit = 0h01
+			
+			while cbit < 256
+				if control & cbit != 0
+					if pReader.eof()
+						break
+					end
+					value = pReader.readByte() cast byte
+					pWindow.setAt( pPosition, value )
+					pPosition = ( pPosition + 1 ) & 4095
+					pMemoryFileWriter.writeByte( value )
+					pLenUCData++
+					
+				else
+					if pReader.eof()
+						break
+					end
+					matchpos = pReader.readByte()
+					matchlen = pReader.readByte()
+					matchpos |= ( matchlen & 0hf0 ) << 4
+					matchlen = ( matchlen & 0h0f ) + 3
+					
+					for i = 0 to matchlen
+						value = pWindow.getAt( matchpos ) cast byte
+						matchpos++
+						pWindow.setAt( pPosition, value )
+						pPosition++
+						pMemoryFileWriter.writeByte( value )
+						pLenUCData++
+						pPosition &= 4095
+						matchpos &= 4095
+					end
+				end
+				
+				cbit <<= 1
+			end
+		end
+		
+		var int size = pMemoryFile.getSize()
+		if size < pUnpackedSize
+			return true
+			
+		elif size != pUnpackedSize
+			throw EInvalidParam.new( "Invalid decompress size" )
+			
+		else
+			return false
+		end
+	end
+end

@@ -1,0 +1,48 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine
+
+
+/**
+ * Groff pid calculator.
+ */
+abstract class GroffPid
+	static public func int calculatePid( String string, float value )
+		// in the original code the second value added ontop of it are the first 4 bytes of
+		// the CMaterial object. the first 4 bytes are occupied by the float rvDiffuse value
+		// which defaults to 1. theoretically though it is possible somebody changes this
+		// value using the 'Diffuse' property in the value table either directly or using
+		// SubMaterialXX.
+		var MemoryFile data = MemoryFile.new( "pid" )
+		var FileWriter writer = data.getWriter( false )
+		writer.writeString( string )
+		writer.writeFloat( value )
+		
+		var Crc32 crc = Crc32.new()
+		crc.process( data.getReader() )
+		
+		return crc.getCrc()
+	end
+end

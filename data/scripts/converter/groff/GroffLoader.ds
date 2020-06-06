@@ -1,0 +1,737 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Gui
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Groff loader.
+ */
+class GroffLoader extends FrameUpdateListener
+	// Listener to notify task when groff finished loading
+	interface Listener
+		// Groff finished loading.
+		func void finished( Groff groff )
+		
+		// Groff failed loading.
+		func void failed( Exception exception )
+		
+		// Print out log entry.
+		func void log( String message )
+	end
+	
+	// Task state
+	private enum State
+		decompress //<! Decompress groff file
+		header //<! Open file and read header
+		dataEntries //<! Read data entries
+		nameTable //<! Read name table
+		valueTables //<! Read value table
+		geometries //<! Read geometries
+		materials //<! Read materials
+		mappings //<! Read mappings
+		models //<! Read models
+		instances //<! Read instances
+		done //<! Reading finished
+	end
+	
+	
+	private var Listener pListener
+	private var String pFilename
+	private var State pState
+	private var Groff pGroff
+	private var FileReader pReader
+	private var SzddReader pDecompressor
+	private var int pOffsetDataEntries
+	private var int pNextIndex
+	private var Array pCollector
+	private var Dictionary pMapType
+	
+	
+	public func new( String filename, Listener listener )
+		pFilename = filename
+		pState = State.header
+		pListener = listener
+	end
+	
+	
+	// Cancel loading.
+	public func void cancel()
+		giveUp()
+		pDecompressor = null
+	end
+	
+	// Step loading
+	public func void frameUpdate( float elapsed )
+		try
+			select pState
+			case State.header
+				readHeader()
+				
+			case State.decompress
+				decompress()
+				
+			case State.dataEntries
+				readDataEntries()
+				
+			case State.nameTable
+				readNameTable()
+				
+			case State.valueTables
+				readValueTables()
+				
+			case State.geometries
+				readGeometries()
+				
+			case State.materials
+				readMaterials()
+				
+			case State.mappings
+				readMappings()
+				
+			case State.models
+				readModels()
+				
+			case State.instances
+				readInstances()
+				
+			case State.done
+				giveUp()
+			end
+			
+		catch Exception e
+			giveUp()
+			pState = State.done
+			pListener.failed( e )
+		end
+	end
+	
+	
+	// Open file and read header.
+	private func void readHeader()
+		if pReader == null
+			// TODO file names under windows are case insensitive. for this reason reading
+			//      files under linux fails in such situations. change the code to search
+			//      for files matching case insensitive
+			pReader = FileReader.new( pFilename )
+			
+			if pReader.readUInt() == 0h44445A53
+				pListener.log( "Decompressing GRF..." )
+				pDecompressor = SzddReader.new( pFilename )
+				pState = State.decompress
+				return
+			end
+			
+			pReader.setPosition( 0 )
+		end
+		
+		if pReader.readUInt() != 0h0ACEBABE
+			throw EInvalidParam.new( "invalid signature" )
+		end
+		
+		pGroff = Groff.new( pFilename )
+		pListener.log( "Reading GRF Header..." )
+		
+		var GroffHeader header = pGroff.getHeader()
+		header.setFileSize( pReader.readUInt() )
+		header.setCountDataEntries( pReader.readUInt() )
+		header.setCountNameEntries( pReader.readUInt() )
+		header.setSizeNameTable( pReader.readUInt() )
+		header.setOffsetNameTable( pReader.readUInt() )
+		pReader.movePosition( 24 )
+		
+		pOffsetDataEntries = pReader.getPosition()
+		
+		pState = State.nameTable
+		pNextIndex = -1
+	end
+	
+	// Read name table.
+	private func void readNameTable()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Name Table..." )
+			pReader.setPosition( pGroff.getHeader().getOffsetNameTable() )
+			pNextIndex = 0
+		end
+		
+		var int count = pGroff.getHeader().getCountNameEntries()
+		var int last = DEMath.min( pNextIndex + 100, count )
+		var int length
+		
+		for pNextIndex = pNextIndex to last
+			var GroffName name = GroffName.new()
+			name.setId( pReader.readUInt() )
+			length = pReader.readUInt()
+			name.setRefCount( pReader.readUInt() )
+			name.setName( pReader.readString( length ) )
+			pGroff.addName( name )
+		end
+		
+		if last == count
+			pState = State.dataEntries
+			pNextIndex = -1
+		end
+	end
+	
+	// Read data entries.
+	private func void readDataEntries()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Data Entries..." )
+			pReader.setPosition( pOffsetDataEntries )
+			pNextIndex = 0
+			
+			pMapType = Dictionary.new()
+			pMapType.setAt( 0h1, GroffData.Type.header )
+			pMapType.setAt( 0h2, GroffData.Type.region )
+			pMapType.setAt( 0h4, GroffData.Type.model )
+			pMapType.setAt( 0h8, GroffData.Type.geometry )
+			pMapType.setAt( 0h10, GroffData.Type.mapping )
+			pMapType.setAt( 0h20, GroffData.Type.material )
+			pMapType.setAt( 0h40, GroffData.Type.bitmap )
+			pMapType.setAt( 0h80, GroffData.Type.palette )
+			pMapType.setAt( 0h100, GroffData.Type.physics )
+			pMapType.setAt( 0h200, GroffData.Type.ai )
+			pMapType.setAt( 0h400, GroffData.Type.sound )
+			pMapType.setAt( 0h800, GroffData.Type.design )
+			pMapType.setAt( 0h1000, GroffData.Type.trigger )
+			pMapType.setAt( 0h2000, GroffData.Type.valueTable )
+			pMapType.setAt( 0h80000000, GroffData.Type.dataUpdate )
+		end
+		
+		var int count = pGroff.getHeader().getCountDataEntries()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		for pNextIndex = pNextIndex to last
+			var GroffData data = GroffData.new()
+			data.setName( pGroff.getNameById( pReader.readUInt() ) )
+			pReader.movePosition( 4 )
+			data.setOffset( pReader.readUInt() )
+			data.setLength( pReader.readUInt() )
+			pReader.movePosition( 8 )
+			data.setType( pMapType.getAt( pReader.readUInt(), GroffData.Type.unknown ) cast GroffData.Type )
+			data.setHandle( pReader.readUInt() )
+			pGroff.addData( data )
+		end
+		
+		if last == count
+			pState = State.valueTables
+			pNextIndex = -1
+		end
+	end
+	
+	// Read value table.
+	private func void readValueTables()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Value Tables..." )
+			pCollector = pGroff.collectData( GroffData.Type.valueTable )
+			pNextIndex = 0
+			
+			pMapType = Dictionary.new()
+			pMapType.setAt( 0h101, GroffValue.Type.boolean )
+			pMapType.setAt( 0h102, GroffValue.Type.character )
+			pMapType.setAt( 0h103, GroffValue.Type.integer )
+			pMapType.setAt( 0h104, GroffValue.Type.floating )
+			pMapType.setAt( 0h105, GroffValue.Type.string )
+			pMapType.setAt( 0h106, GroffValue.Type.group )
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 2, count )
+		pCollector.forEach( pNextIndex, last, block GroffData each
+			pReader.setPosition( each.getOffset() )
+			
+			// value names
+			pReader.movePosition( 6 )
+			var int i, count = pReader.readUInt()
+			pReader.movePosition( 6 )
+			pReader.movePosition( 4 ) // count again
+			
+			for i = 0 to count
+				var String name = ""
+				var byte character = pReader.readByte() cast byte
+				while character != 0
+					name = name + character
+					character = pReader.readByte() cast byte
+				end
+				
+				var GroffValueName valueName = GroffValueName.new()
+				valueName.setName( name )
+				valueName.setId( pReader.readUInt() )
+				valueName.setUsageCount( pReader.readUInt() )
+				pGroff.addValueName( valueName )
+			end
+			
+			//  values
+			pReader.movePosition( 5 )
+			count = pReader.readUInt()
+			pReader.movePosition( 5 )
+			pReader.movePosition( 4 ) // count again
+			for i = 0 to count
+				var GroffValue value = GroffValue.new()
+				value.setType( pMapType.getAt( pReader.readUShort() ) cast GroffValue.Type )
+				pReader.movePosition( 1 )
+				value.setId( pReader.readUInt() )
+				pReader.movePosition( 4 )
+				value.setName( pGroff.getValueNameById( pReader.readUInt() ) )
+				pReader.movePosition( 12 )
+				
+				select value.getType()
+				case GroffValue.Type.boolean
+					value.setData( pReader.readByte() == 1 )
+					
+				case GroffValue.Type.character
+					value.setData( pReader.readByte() cast byte )
+					
+				case GroffValue.Type.integer
+					value.setData( pReader.readInt() )
+					
+				case GroffValue.Type.floating
+					value.setData( pReader.readFloat() )
+					
+				case GroffValue.Type.string
+					var String string = ""
+					var byte character = pReader.readByte() cast byte
+					while character != 0
+						string = string + character
+						character = pReader.readByte() cast byte
+					end
+					value.setData( string )
+					
+				case GroffValue.Type.group
+					var int j, countEntries = pReader.readUInt()
+					var Array data = Array.new()
+					for j = 0 to countEntries
+						data.add( pReader.readUInt() )
+						pReader.movePosition( 4 ) // two values?
+					end
+					value.setData( data )
+				end
+				
+				pReader.movePosition( 8 )
+				pGroff.addValue( value )
+			end
+		end )
+		pNextIndex = last
+		
+		if last == count
+			// finish groups
+			pGroff.forEachValue( GroffValue.Type.group, block GroffValue each
+				each.setData( ( each.getData() cast Array ).map( block int id
+					return pGroff.getValueById( id )
+				end ) )
+			end )
+			
+			pState = State.geometries
+			pNextIndex = -1
+		end
+	end
+	
+	// Read geometries.
+	private func void readGeometries()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Geometries..." )
+			pCollector = pGroff.collectData( GroffData.Type.geometry )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 5, count )
+		pCollector.forEach( pNextIndex, last, block GroffData each
+			pReader.setPosition( each.getOffset() )
+			
+			var GroffGeometry geometry = GroffGeometry.new()
+			geometry.setId( each.getHandle() )
+			
+			// determine if this is a type 1 or type 2 format. for this the data is read
+			// as if it is a type 1 format. the required block size is calculated from
+			// the count values and compared with the actual block size.
+			// if the size matches this is a type 1. if not it has to be a type 2.
+			// the values can not be stored directory into geometry because if we try
+			// to read the wrong type exceptions will be thrown
+			
+			geometry.setPivotOffset( readVector() )
+			var int testVertexCount = pReader.readUInt()
+			var int testFaceCount = pReader.readUInt()
+			var int testNormalCount = pReader.readUInt()
+			var int testWrapVertexCount = pReader.readUInt()
+			var int testCornerCount = testFaceCount * 3
+			
+			var int i, j, expectedSize = 40
+			expectedSize += testVertexCount * 12
+			expectedSize += testFaceCount * 24
+			expectedSize += testNormalCount * 12
+			expectedSize += testWrapVertexCount * 12
+			
+			// type 1 so continue reading
+			if testNormalCount == testCornerCount and expectedSize == each.getLength()
+				geometry.setFormat( GroffGeometry.Format.type1 )
+				geometry.setVertexCount( testVertexCount )
+				geometry.setFaceCount( testFaceCount )
+				geometry.setNormalCount( testNormalCount )
+				geometry.setWrapVertexCount( testWrapVertexCount )
+				geometry.setCornerCount( testCornerCount )
+				geometry.setRealCornerCount( testCornerCount )
+				
+				for i = 0 to geometry.getFaceCount()
+					var GroffGeometryFace face = GroffGeometryFace.new()
+					face.setMaterial( 0 )
+					face.setSmoothShading( false )
+					geometry.addFace( face )
+				end
+				
+				geometry.setDefaultColor( readColor32() )
+				for i = 0 to geometry.getVertexCount()
+					geometry.addVertex( readVector() )
+				end
+				
+				var Array corners = Array.new()
+				for i = 0 to geometry.getCornerCount()
+					corners.add( pReader.readUInt() )
+				end
+				
+				for i = 0 to geometry.getFaceCount()
+					geometry.getFaceAt( i ).setFaceNormal( readVector() )
+				end
+				
+				pReader.movePosition( 12 * geometry.getNormalCount() ) // ignore normals
+				
+				for i = 0 to geometry.getWrapVertexCount()
+					geometry.addWrapVertex( readVector() )
+				end
+				
+				for i = 0 to geometry.getFaceCount()
+					var GroffGeometryFace face = geometry.getFaceAt( i )
+					for j = 0 to 3
+						face.addVertex( corners.getAt( i * 3 + j ) cast int )
+						face.addTexCoord( Vector2.new() )
+						face.addNormal( corners.getAt( i * 3 + j ) cast int ) // hack! fully smooth shading
+					end
+				end
+				
+			// type 2 so restart reading the block from the beginning
+			else
+				geometry.setFormat( GroffGeometry.Format.type2 )
+				
+				pReader.setPosition( each.getOffset() )
+				geometry.setMaterial( pReader.readUInt() )
+				pReader.movePosition( 4 )
+				geometry.setDefaultColor( readColor8() )
+				geometry.setPivotOffset( readVector() )
+				geometry.setVertexCount( pReader.readUInt() )
+				var int texturedNormalCount = pReader.readUInt()
+				geometry.setCornerCount( pReader.readUInt() )
+				geometry.setWrapVertexCount( pReader.readUInt() )
+				geometry.setFaceCount( pReader.readUInt() )
+				
+				geometry.setRealCornerCount( 0 )
+				
+				for i = 0 to geometry.getVertexCount()
+					geometry.addVertex( readVector() )
+				end
+				
+				var Array vertexVertices = Array.new()
+				var Array vertexTexCoords = Array.new()
+				for i = 0 to texturedNormalCount
+					vertexVertices.add( pReader.readUInt() )
+					pReader.movePosition( 12 ) // ignore normals
+					vertexTexCoords.add( readVector2() )
+					pReader.movePosition( 8 )
+				end
+				
+				var Array corners = Array.new()
+				for i = 0 to geometry.getCornerCount()
+					corners.add( pReader.readUInt() )
+				end
+				
+				for i = 0 to geometry.getFaceCount()
+					var GroffGeometryFace face = GroffGeometryFace.new()
+					var int vertexCount = pReader.readUInt()
+					var int firstVertex = pReader.readUInt()
+					geometry.setRealCornerCount( geometry.getRealCornerCount() + vertexCount )
+					face.setFaceNormal( readVector() )
+					face.setFaceDistance( pReader.readFloat() )
+					face.setMaterial( pReader.readUInt() )
+					if face.getMaterial() >= geometry.getMaterialCount()
+						geometry.setMaterialCount( face.getMaterial() + 1 )
+					end
+					face.setSmoothShading( pReader.readUInt() == 4 )
+					pReader.movePosition( 4 )
+					face.setSomething( pReader.readUInt() )
+					
+					for j = 0 to vertexCount
+						var int corner = corners.getAt( firstVertex + j ) cast int
+						face.addVertex( vertexVertices.getAt( corner ) cast int )
+						face.addTexCoord( vertexTexCoords.getAt( corner ) cast Vector2 )
+						face.addNormal( vertexVertices.getAt( corner ) cast int ) // hack! fully smooth shading
+					end
+					geometry.addFace( face )
+				end
+				geometry.setNormalCount( geometry.getVertexCount() )
+				
+				for i = 0 to geometry.getWrapVertexCount()
+					geometry.addWrapVertex( readVector() )
+				end
+			end
+			
+			geometry.calculateBoundingBox()
+			pGroff.addGeometry( geometry )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.materials
+			pNextIndex = -1
+		end
+	end
+	
+	// Read materials.
+	private func void readMaterials()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Materials..." )
+			pCollector = pGroff.collectData( GroffData.Type.material )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffData each
+			pReader.setPosition( each.getOffset() )
+			
+			var GroffMaterial material = GroffMaterial.new()
+			material.setId( each.getHandle() )
+			material.setMaterialCount( pReader.readUInt() )
+			
+			var int i, count = material.getMaterialCount()
+			for i = 0 to count
+				material.addColorMap( pGroff.getOrAddImage( pReader.readUInt() ) )
+			end
+			for i = 0 to count
+				material.addOpacityMap( pGroff.getOrAddImage( pReader.readUInt() ) )
+			end
+			for i = 0 to count
+				material.addBumpMap( pGroff.getOrAddImage( pReader.readUInt() ) )
+			end
+			
+			var Array reds = Array.new()
+			for i = 0 to count
+				reds.add( ( pReader.readUInt() cast float ) / 255 )
+			end
+			
+			var Array greens = Array.new()
+			for i = 0 to count
+				greens.add( ( pReader.readUInt() cast float ) / 255 )
+			end
+			
+			var Array blues = Array.new()
+			for i = 0 to count
+				blues.add( ( pReader.readUInt() cast float ) / 255 )
+			end
+			
+			for i = 0 to count
+				material.addColor( Color.new( reds.getAt( i ) cast float, \
+					greens.getAt( i ) cast float, blues.getAt( i ) cast float ) )
+			end
+			
+			material.setAmbientLighting( pReader.readUInt() )
+			material.setDiffuseLighting( pReader.readUInt() )
+			material.setSpecularLighting( pReader.readUInt() )
+			material.setOpacity( pReader.readUInt() )
+			material.setBumpiness( pReader.readUInt() )
+			
+			material.calculatePids()
+			
+			pGroff.addMaterial( material )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.mappings
+			pNextIndex = -1
+		end
+	end
+	
+	// Read mappings.
+	private func void readMappings()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Mappings..." )
+			pCollector = pGroff.collectData( GroffData.Type.mapping )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffData each
+			pReader.setPosition( each.getOffset() )
+			
+			var GroffMapping mapping = GroffMapping.new()
+			mapping.setId( each.getHandle() )
+			mapping.setMaterial( pGroff.getMaterialById( pReader.readUInt() ) )
+			
+			if each.getLength() > 4
+				mapping.setVertexCount( pReader.readUInt() )
+				mapping.setFaceCount( pReader.readUInt() )
+				
+				var int i, count = mapping.getVertexCount()
+				for i = 0 to count
+					mapping.addTexCoord( readVector2() )
+				end
+				
+				count = mapping.getFaceCount() * 3
+				for i = 0 to count
+					mapping.addFaceVertex( pReader.readUInt() )
+				end
+				
+				count = mapping.getFaceCount()
+				for i = 0 to count
+					mapping.addFaceMaterial( pReader.readUInt() )
+				end
+			end
+			
+			pGroff.addMapping( mapping )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.models
+			pNextIndex = -1
+		end
+	end
+	
+	// Read models.
+	private func void readModels()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Models..." )
+			pCollector = pGroff.collectData( GroffData.Type.model )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffData each
+			pReader.setPosition( each.getOffset() )
+			
+			var GroffModel model = GroffModel.new()
+			model.setId( each.getHandle() )
+			model.setName( pGroff.getNameById( pReader.readUInt() ) )
+			model.setGeometry( pGroff.getGeometryByIdOrNull( pReader.readUInt() ) )
+			model.setMapping( pGroff.getMappingByIdOrNull( pReader.readUInt() ) )
+			pReader.movePosition( 16 )
+			
+			pGroff.addModel( model )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.instances
+			pNextIndex = -1
+		end
+	end
+	
+	// Read instances.
+	private func void readInstances()
+		if pNextIndex == -1
+			pListener.log( "Reading GRF Instances..." )
+			pCollector = pGroff.collectData( GroffData.Type.region )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 1, count )
+		pCollector.forEach( pNextIndex, last, block GroffData each
+			pReader.setPosition( each.getOffset() )
+			
+			var int i, count = pReader.readUInt()
+			for i = 0 to count
+				var GroffInstance instance = GroffInstance.new()
+				instance.setModel( pGroff.getModelByIdOrNull( pReader.readUInt() ) )
+				instance.setName( pGroff.getNameById( pReader.readUInt() ) )
+				instance.setPosition( readDVector() )
+				instance.setRotation( readDVector() )
+				instance.setScale( pReader.readFloat() )
+				instance.setValueTable( pGroff.getValueByIdOrNull( pReader.readUInt() ) )
+				pReader.movePosition( 4 ) // UInt: 1=hasValueTable 0=hasNoValueTable
+				pGroff.addInstance( instance )
+			end
+			
+			pGroff.setHandleValueTable( pReader.readUInt() )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			giveUp()
+			pState = State.done
+			pListener.finished( pGroff )
+		end
+	end
+	
+	// Decompress file.
+	private func void decompress()
+		if not pDecompressor.decompress()
+			pReader = pDecompressor.getMemoryFile().getReader()
+			pDecompressor = null
+			pState = State.header
+		end
+	end
+	
+	// Read vector2.
+	private func Vector2 readVector2()
+		var float x = pReader.readFloat()
+		var float y = pReader.readFloat()
+		return Vector2.new( x, y )
+	end
+	
+	// Read vector.
+	private func Vector readVector()
+		var float x = pReader.readFloat()
+		var float y = pReader.readFloat()
+		var float z = pReader.readFloat()
+		return Vector.new( x, y, z )
+	end
+	
+	// Read vector.
+	private func DVector readDVector()
+		var float x = pReader.readFloat()
+		var float y = pReader.readFloat()
+		var float z = pReader.readFloat()
+		return DVector.new( x, y, z )
+	end
+	
+	// Read RGB color in 32-bit integer format.
+	private func Color readColor32()
+		var float r = ( pReader.readUInt() cast float ) / 255
+		var float g = ( pReader.readUInt() cast float ) / 255
+		var float b = ( pReader.readUInt() cast float ) / 255
+		return Color.new( r, g, b )
+	end
+	
+	// Read RGBA color in 8-bit integer format.
+	private func Color readColor8()
+		var float b = ( pReader.readByte() cast float ) / 255
+		var float g = ( pReader.readByte() cast float ) / 255
+		var float r = ( pReader.readByte() cast float ) / 255
+		var float a = ( pReader.readByte() cast float ) / 255
+		return Color.new( r, g, b, a )
+	end
+end

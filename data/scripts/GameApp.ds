@@ -31,8 +31,8 @@ pin Dragengine.Utils
  * Game Application Class.
  */
 class GameApp extends BaseGameApp
-	public var TresDeConverter converter //<! Converter from trespasser to dragengine
-	public var WindowMain windowMain
+	private var Converter pConverter
+	private var WindowMain pWindowMain
 	
 	
 	public func new()
@@ -41,10 +41,27 @@ class GameApp extends BaseGameApp
 		defaultLanguagePackName = UnicodeString.newFromUTF8( "English" )
 	end
 	
+	
+	// The one and only game app instance
+	static public func GameApp getGameApp()
+		return getApp() cast GameApp
+	end
+	
+	// Converter from trespasser to dragengine
+	public func Converter getConverter()
+		return pConverter
+	end
+	
+	// Main window
+	public func WindowMain getWindowMain()
+		return pWindowMain
+	end
+	
+	
 	public func void initGame()
 		super.initGame()
 		
-		converter = TresDeConverter.new()
+		pConverter = Converter.new()
 		
 		WindowLogo.showDragengineLogo( this.getDesktop(), BlockActionListener.new( \
 			block ActionEvent event
@@ -55,8 +72,8 @@ class GameApp extends BaseGameApp
 	public func void launchApplication()
 		getWindowGameWorld().setVisible( false )
 		
-		windowMain = WindowMain.new()
-		windowMain.updateListScenes()
+		pWindowMain = WindowMain.new()
+		pWindowMain.updateListScenes()
 		
 		/*
 		// BaseGameApp adds a WindowConsole which can be toggled by pressing F1 key. Adding
@@ -87,16 +104,11 @@ class GameApp extends BaseGameApp
 	
 	public func void cleanUp()
 		// close main window
-		if windowMain != null
-			windowMain.close()
-			windowMain = null
+		if pWindowMain != null
+			pWindowMain.close()
+			pWindowMain = null
 		end
 		
 		super.cleanUp()
-	end
-	
-	// quick access for game app instance
-	static public func GameApp getGameApp()
-		return getApp() cast GameApp
 	end
 end

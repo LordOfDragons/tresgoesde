@@ -28,15 +28,15 @@ pin Dragengine.Utils
 
 
 /**
- * Main window
+ * Main window.
  */
 class WindowMain extends Window
 	// run scene action.
 	class ActionRunScene extends DefaultActionListener
-		public var WindowMain windowMain
+		private var WindowMain pWindowMain
 		
 		public func new( WindowMain window )
-			windowMain = window
+			pWindowMain = window
 		end
 		
 		public func void onAction( ActionEvent event )
@@ -45,33 +45,34 @@ class WindowMain extends Window
 	
 	// convert scene action.
 	class ActionConvertScene extends DefaultActionListener
-		public var WindowMain windowMain
+		private var WindowMain pWindowMain
 		
 		public func new( WindowMain window )
-			windowMain = window
+			pWindowMain = window
 		end
 		
 		public func void onAction( ActionEvent event )
 			var DefaultListModel scenes = DefaultListModel.new()
-			GameApp.getGameApp().converter.fillModelConvertableScenes( scenes )
+			GameApp.getGameApp().getConverter().fillModelConvertableScenes( scenes )
 			
-			WindowDialog.chooseList( windowMain, "Convert Scene", "Select Scene to convert", \
+			WindowDialog.chooseList( pWindowMain, "Convert Scene", "Select Scene to convert", \
 				null, scenes, DefaultListElementRenderer.new( String.new( 'X', 25 ) ), \
 				WindowDialog.ButtonConfiguration.new( "Convert" ), null, \
 				WindowDialog.BlockResultListener.new( block int result
 					if result != -1
-						// convert scenes.getAt( result )
+						WindowConvertScene.new( scenes.getAt( result ) cast String ) \
+							.show( pWindowMain, false, WindowModal.Placement.desktop )
 					end
 				end ) )
 		end
 	end
 	
 	
-	public var DefaultListModel modelScenes //<! list model containing scenes to display
+	private var DefaultListModel pModelScenes
 	
 	
 	public func new() super( 10, 30, 400, 400 )
-		modelScenes = DefaultListModel.new()
+		pModelScenes = DefaultListModel.new()
 		
 		runWhileBlockingLayout( block
 			setTitle( "Trespasser Goes Drag[en]gine" )
@@ -85,7 +86,7 @@ class WindowMain extends Window
 			addWidget( Label.new( "Converted Scenes", "Label.WindowMain" ), BorderLayout.Area.top )
 			
 			// list of converted scenes in the center which stretches
-			addWidget( ScrollPanel.new( ListBox.new( modelScenes ), ScrollPanel.Policy.hidden, \
+			addWidget( ScrollPanel.new( ListBox.new( pModelScenes ), ScrollPanel.Policy.hidden, \
 				ScrollPanel.Policy.visible ), BorderLayout.Area.content )
 			
 			// buttons in bottom area
@@ -111,6 +112,6 @@ class WindowMain extends Window
 	
 	// update list of converted scenes
 	public func void updateListScenes()
-		GameApp.getGameApp().converter.fillModelConvertedScenes( modelScenes )
+		GameApp.getGameApp().getConverter().fillModelConvertedScenes( pModelScenes )
 	end
 end

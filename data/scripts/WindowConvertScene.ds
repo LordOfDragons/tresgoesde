@@ -1,0 +1,136 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Window showing convertion progress.
+ */
+class WindowConvertScene extends WindowDialog implements ConverterTask.Listener
+	// Cancel loading action.
+	class CancelTaskAction extends DefaultActionListener
+		private var WindowConvertScene pWindow
+		
+		public func new( WindowConvertScene window )
+			pWindow = window
+		end
+		
+		public func void onAction( ActionEvent event )
+			pWindow.cancelTask()
+		end
+	end
+	
+	
+	private var String pBaseFilename //<! Filename of scene to convert
+	private var DefaultListModel pModelLogs
+	private var Button pButtonCancel
+	private var Button pButtonClose
+	private var ConverterTask pConverterTask
+	
+	
+	public func new( String baseFilename ) super( 10, 30, 600, 400 )
+		pBaseFilename = baseFilename
+		pModelLogs = DefaultListModel.new()
+		
+		runWhileBlockingLayout( block
+			setTitle( "Convert Scene" )
+			setCanClose( false )
+			setCanMaximize( false )
+			setCanMinimize( false )
+			setDesignerSelector( "Window.ConvertScene" )
+			setLayout( BorderLayout.new( 2 ) )
+			
+			// scene to convert in top area
+			addWidget( Label.new( "Converting " + pBaseFilename, \
+				"Label.WindowConvertScene.SceneFilename" ), BorderLayout.Area.top )
+			
+			// conversion progress log
+			addWidget( ScrollPanel.new( ListBox.new( pModelLogs ), ScrollPanel.Policy.hidden, \
+				ScrollPanel.Policy.visible ), BorderLayout.Area.content )
+			
+			// buttons in bottom area
+			addWidget( Panel.new( GridLayout.new( 2, 1 ), block Panel p
+				pButtonClose = Button.new( "Close", CloseDialog.new( this ) )
+				pButtonClose.setEnabled( false )
+				p.addWidget( pButtonClose )
+				
+				pButtonCancel = Button.new( "Cancel", CancelTaskAction.new( this ) )
+				p.addWidget( pButtonCancel )
+			end ), BorderLayout.Area.bottom )
+			
+			// Set cancel button as default widget
+			setActiveWidget( pButtonCancel )
+		end )
+		
+		pConverterTask = ConverterTask.new( baseFilename, this )
+	end
+	
+	public func void dispose()
+		pButtonCancel = null
+		pButtonClose = null
+		if pConverterTask != null
+			pConverterTask.cancel()
+			pConverterTask = null
+		end
+		super.dispose()
+	end
+	
+	
+	// Cancel task.
+	public func void cancelTask()
+		pButtonCancel.setEnabled( false )
+		
+		if pConverterTask != null
+			pConverterTask.cancel()
+			pConverterTask = null
+		end
+	end
+	
+	// Print out log entry.
+	public func void log( String message )
+		GameApp.getApp().getConsole().addMessage( message )
+		pModelLogs.add( message )
+		pModelLogs.setSelected( pModelLogs.getCount() - 1 )
+	end
+	
+	// Converting finished successfully.
+	public func void succeeded()
+		GameApp.getApp().getConsole().addMessage( "Converting " + pBaseFilename + " succeeded." )
+		pConverterTask = null
+		pButtonClose.setEnabled( true )
+		pButtonCancel.setEnabled( false )
+	end
+	
+	// Converting failed with an exception.
+	public func void failed( Exception exception )
+		GameApp.getApp().getConsole().addError( "Converting " + pBaseFilename + " failed.", exception )
+		log( "Converting " + pBaseFilename + " failed: " + exception )
+		pConverterTask = null
+		pButtonClose.setEnabled( true )
+		pButtonCancel.setEnabled( false )
+	end
+end
