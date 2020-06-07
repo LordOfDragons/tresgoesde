@@ -127,14 +127,14 @@ class Exporter
 	
 	static public func Vector transformRotation( Vector rotation )
 		// return [math.degrees(rotation[0]), math.degrees(rotation[2]), math.degrees(rotation[1])]
-		return matrixToEuler( convertMatrix( tresRotationMatrix( rotation ) ) )
+		return convertMatrix( tresRotationMatrix( rotation ) ).getEulerAngles()
 	end
 	
 	static public func Vector2 transformTexCoord( Vector2 texCoord )
 		return Vector2.new( texCoord.getX(), 1.0 - texCoord.getY() )
 	end
 	
-	static public func DMatrix tresRotationMatrix( Vector rotation )
+	static public func Matrix tresRotationMatrix( Vector rotation )
 		var float sx = DEMath.sin( rotation.getX() )
 		var float cx = DEMath.cos( rotation.getX() )
 		var float sy = DEMath.sin( rotation.getY() )
@@ -143,14 +143,13 @@ class Exporter
 		var float cz = DEMath.cos( rotation.getZ() )
 		var float a = sx * sy
 		var float b = cx * sy
-		return DMatrix.new( \
+		return Matrix.new( \
 			cy * cz, a * cz - cx * sz, b * cz + sx * sz, 0, \
 			cy * sz, a * sz + cx * cz, b * sz - sx * cz, 0, \
-			-sy, sx * cy, cx * cy, 0, \
-			0, 0, 0, 1 )
+			-sy, sx * cy, cx * cy, 0 )
 	end
 	
-	static public func DMatrix convertMatrix( DMatrix matrix )
+	static public func Matrix convertMatrix( Matrix matrix )
 		// epsylonAxisX = tresAxisX
 		// epsylonAxisY = tresAxisZ
 		// epsylonAxisZ = tresAxisY
@@ -166,26 +165,9 @@ class Exporter
 		row2 = (eax[1], eay[1], eaz[1])
 		row3 = (eax[2], eay[2], eaz[2])
 		*/
-		return DMatrix.new( \
+		return Matrix.new( \
 			matrix.get11(), matrix.get13(), matrix.get12(), 0, \
 			matrix.get31(), matrix.get33(), matrix.get32(), 0, \
-			matrix.get21(), matrix.get23(), matrix.get22(), 0, \
-			0, 0, 0, 1 )
-	end
-	
-	static public func Vector matrixToEuler( DMatrix matrix )
-		if matrix.get23() < 1
-			if matrix.get23() > -1
-				return Vector.new( \
-					DEMath.asin( matrix.get23() ), \
-					DEMath.atan2( -matrix.get13(), matrix.get33() ), \
-					DEMath.atan2( -matrix.get21(), matrix.get22() ) )
-			else // undefined
-				return Vector.new( -90, 0, -DEMath.atan2( matrix.get31(), matrix.get11() ) )
-			end
-			
-		else // undefined
-			return Vector.new( 90, 0, DEMath.atan2( matrix.get31(), matrix.get11() ) )
-		end
+			matrix.get21(), matrix.get23(), matrix.get22(), 0 )
 	end
 end

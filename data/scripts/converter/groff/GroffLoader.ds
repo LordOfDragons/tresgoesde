@@ -663,7 +663,7 @@ class GroffLoader extends FrameUpdateListener
 				instance.setModel( pGroff.getModelByIdOrNull( pReader.readUInt() ) )
 				instance.setName( pGroff.getNameById( pReader.readUInt() ) )
 				instance.setPosition( readDVector() )
-				instance.setRotation( readVector() )
+				instance.setRotation( readRotation() )
 				instance.setScale( pReader.readFloat() )
 				instance.setValueTable( pGroff.getValueByIdOrNull( pReader.readUInt() ) )
 				pReader.movePosition( 4 ) // UInt: 1=hasValueTable 0=hasNoValueTable
@@ -711,6 +711,14 @@ class GroffLoader extends FrameUpdateListener
 		var float y = pReader.readFloat()
 		var float z = pReader.readFloat()
 		return DVector.new( x, y, z )
+	end
+	
+	// Read rotation in radians converted to degrees rotation.
+	private func Vector readRotation()
+		var float x = DEMath.radToDeg( pReader.readFloat() )
+		var float y = DEMath.radToDeg( pReader.readFloat() )
+		var float z = DEMath.radToDeg( pReader.readFloat() )
+		return Vector.new( x, y, z )
 	end
 	
 	// Read RGB color in 32-bit integer format.
