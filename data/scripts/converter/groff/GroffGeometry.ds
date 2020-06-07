@@ -220,12 +220,24 @@ class GroffGeometry
 		return pFaces.getAt( index ) cast GroffGeometryFace
 	end
 	
+	public func void forEachFace( Block ablock )
+		pFaces.forEach( ablock )
+	end
+	
 	
 	public func void addVertex( Vector vertex )
 		if vertex == null
 			throw ENullPointer.new()
 		end
 		pVertices.add( vertex )
+	end
+	
+	public func Vector getVertexAt( int index )
+		return pVertices.getAt( index ) cast Vector
+	end
+	
+	public func void forEachVertex( Block ablock )
+		pVertices.forEach( ablock )
 	end
 	
 	

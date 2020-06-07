@@ -50,6 +50,7 @@ class ExportInstance
 	public func new( GroffInstance groffInstance )
 		pGroffInstance = groffInstance
 		pTpClass = ""
+		pClass = ""
 		pProperties = StubWithProperties.new()
 		pIsVisible = true
 	end
@@ -106,64 +107,23 @@ class ExportInstance
 	end
 	
 	
-	public func void identify( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
-		var GroffModel model = pGroffInstance.getModel()
-		if model != null and model.getBaseScale() != null
-			model.setBaseScale( Float.new( pGroffInstance.getScale() ) )
-		end
-		
-		var GroffValue valueTable = pGroffInstance.getValueTable()
-		if valueTable.getType() == GroffValue.Type.group
-			var GroffValue property = valueTable.getProperty( propertyClass )
-			if property != null
-				pTpClass = property.getDataString()
-				pIsTrigger = getTriggerClasses().has( pTpClass )
-				pIsModel = getModelClasses().has( pTpClass )
-			end
-			
-			property = valueTable.getProperty( propertyVisible )
-			if property != null
-				pIsVisible = property.getDataBool()
-			end
-		end
-		
-		pIsPhysics = pGroffInstance.getName().getName().getAt( 0 ) == '$'
-		if pIsPhysics
-			return
-		end
-		
-		if pTpClass == null
-			pTpClass = "CInstance"
-		end
-		
-		pClass = pTpClass
-		pModel = pGroffInstance.getModel()
-		
-		if valueTable.getType() == GroffValue.Type.group
-			addProperties( groff, valueTable, "" )
-		end
-		
-		if model != null and model.getMapping() != null and model.getMapping().getMaterial() != null
-			var bool hasNonOccMat = false
-			var bool hasOccMat = false
-			
-			model.getMapping().getMaterial().forEachPid( block PidFileEntry pid
-				if pid != null
-					if pid.getOcclusion()
-						hasOccMat = true
-						
-					else
-						hasNonOccMat = true
-					end
-				end
-			end )
-			
-			if hasOccMat and not hasNonOccMat
-				pClass = "Occlusion"
-				pOcclusion = pModel
-				pIsOcclusion = true
-			end
-		end
+	public func void prepare( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
+		identify( groff, propertyClass, propertyVisible )
+		processProperties( groff )
+		buildPhysics( groff )
+	end
+	
+	private func void buildPhysics( Groff groff )
+		// TODO
+		// go through properties and look for things like "ModelXX". collect them and build
+		// a rig out of it. this has to be stored then as *.derig
+		// => see "Type"=="Box"|"Compound"
+		// 
+		// NOTE
+		// ModelXX is used on all instances of a model but the position is relative to the
+		// basement model (-00). hence if the name of the model does end with "-XX" for XX
+		// 01, 02, .. then find the basement model with name "-00" and calculate the position
+		// relative to it
 	end
 	
 	public func void export( Exporter exporter, ExportWorld world )
@@ -198,18 +158,24 @@ class ExportInstance
 		tag.setAttribute( "key", "tresId" )
 		
 		if pModel != null
-			tag = tagObject.addDataTag( "property", pModel.getName().getName() )
+			tag = tagObject.addDataTag( "property", \
+				( exporter.getPathModelDir() + ( pModel.getName().getName() + ".demodel" ) ).getPath() )
 			tag.setAttribute( "key", "component.model" )
+			exporter.addModel( pModel )
 			
 			if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
-				tag = tagObject.addDataTag( "property", pModel.getName().getName() )
+				tag = tagObject.addDataTag( "property", \
+					( exporter.getPathSkinDir() + ( pModel.getName().getName() + ".deskin" ) ).getPath() )
 				tag.setAttribute( "key", "component.skin" )
+				exporter.addSkin( pModel.getMapping().getMaterial() )
 			end
 		end
 		
 		if pOcclusion != null
-			tag = tagObject.addDataTag( "property", pOcclusion.getName().getName() ) // deIGPathOccMesh
+			tag = tagObject.addDataTag( "property", \
+				( exporter.getPathOcclusionMeshDir() + ( pOcclusion.getName().getName() + ".deoccmesh" ) ).getPath() )
 			tag.setAttribute( "key", "component.occlusionMesh" )
+			exporter.addOcclusionMesh( pOcclusion )
 		end
 		
 		if pModel != null and pModel.getGeometry() != null
@@ -262,6 +228,64 @@ class ExportInstance
 				addProperties( groff, data, prefix + name )
 			end
 		end )
+	end
+	
+	private func void identify( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
+		var GroffModel model = pGroffInstance.getModel()
+		if model != null and model.getBaseScale() != null
+			model.setBaseScale( Float.new( pGroffInstance.getScale() ) )
+		end
+		
+		var GroffValue valueTable = pGroffInstance.getValueTable()
+		if valueTable.getType() == GroffValue.Type.group
+			var GroffValue property = valueTable.getProperty( propertyClass )
+			if property != null
+				pTpClass = property.getDataString()
+				pIsTrigger = getTriggerClasses().has( pTpClass )
+				pIsModel = getModelClasses().has( pTpClass )
+			end
+			
+			property = valueTable.getProperty( propertyVisible )
+			if property != null
+				pIsVisible = property.getDataBool()
+			end
+		end
+		
+		pIsPhysics = pGroffInstance.getName().getName().getAt( 0 ) == '$'
+		if pIsPhysics
+			return
+		end
+		
+		if pTpClass.empty()
+			pTpClass = "CInstance"
+		end
+		
+		pClass = pTpClass
+		pModel = pGroffInstance.getModel()
+		
+		if valueTable.getType() == GroffValue.Type.group
+			addProperties( groff, valueTable, "" )
+		end
+		
+		if model != null and model.getMapping() != null and model.getMapping().getMaterial() != null
+			var bool hasNonOccMat = model.getMapping().getMaterial().findPid( block PidFileEntry pid
+				return pid != null and not pid.getOcclusion()
+			end ) != null
+			
+			var bool hasOccMat = model.getMapping().getMaterial().findPid( block PidFileEntry pid
+				return pid != null and pid.getOcclusion()
+			end ) != null
+			
+			if hasOccMat and not hasNonOccMat
+				pClass = "Occlusion"
+				pOcclusion = pModel
+				pModel = null
+				pIsOcclusion = true
+			end
+		end
+	end
+	
+	private func void processProperties( Groff groff )
 	end
 	
 	

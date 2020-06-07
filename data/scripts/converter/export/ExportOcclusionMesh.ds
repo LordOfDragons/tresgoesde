@@ -1,0 +1,100 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.XML
+
+
+/**
+ * Export occlusion mesh.
+ */
+class ExportOcclusionMesh
+	private var GroffModel pModel
+	private var GroffGeometry pGeometry
+	
+	
+	public func new( GroffModel model )
+		pModel = model
+		pGeometry = model.getGeometry()
+	end
+	
+	
+	public func void export( Exporter exporter )
+		var String filename = pModel.getName().getName() + ".deoccmesh"
+		var FileWriter writer = FileWriter.new( ( exporter.getPathOcclusionMeshDir() + filename ).getPath() )
+		
+		writeHeader( writer )
+		writeBones( writer )
+		writeWeights( writer )
+		writeVertices( writer )
+		writeSingleSidedFaces( writer )
+		writeDoubleSidedFaces( writer )
+	end
+	
+	
+	private func void writeHeader( FileWriter writer )
+		writer.writeString( "Drag[en]gine Occlusion Mesh" )
+		writer.writeUShort( 1 ) // version
+		writer.writeUShort( 0 ) // flags
+		writer.writeUShort( 0 ) // bone count
+		writer.writeUShort( 0 ) // weights count
+		writer.writeUShort( pGeometry.getVertexCount() ) // vertex count
+		writer.writeUShort( pGeometry.getRealCornerCount() ) // corner count
+		writer.writeUShort( pGeometry.getFaceCount() ) // face count
+		writer.writeUShort( pGeometry.getFaceCount() ) // double sided face count
+	end
+	
+	private func void writeBones( FileWriter writer )
+	end
+	
+	private func void writeWeights( FileWriter writer )
+	end
+	
+	private func void writeVertices( FileWriter writer )
+		var float scale = pModel.getBaseScale() != null if pModel.getBaseScale().value() else 1
+		
+		pGeometry.forEachVertex( block Vector vertex
+			writer.writeUShort( 0 ) // weights index
+			Exporter.transformPosition( vertex * scale ).writeToFile( writer ) // position
+		end )
+	end
+	
+	private func void writeSingleSidedFaces( FileWriter writer )
+	end
+	
+	private func void writeDoubleSidedFaces( FileWriter writer )
+		var int i, vertexCount
+		
+		pGeometry.forEachFace( block GroffGeometryFace face
+			vertexCount = face.getVertexCount()
+			
+			writer.writeByte( vertexCount ) // corner count
+			
+			for i = vertexCount - 1 downto 0
+				writer.writeUShort( face.getVertexAt( i ) ) // corner
+			end
+		end )
+	end
+end

@@ -1,0 +1,191 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.XML
+
+
+/**
+ * Export model.
+ */
+class ExportModel
+	private var GroffModel pModel
+	private var GroffGeometry pGeometry
+	private var int pTriangleCount
+	
+	
+	public func new( GroffModel model )
+		pModel = model
+		pGeometry = model.getGeometry()
+		
+		// to make it simple the n-gons are turned all into triangles. drag[en]gine models
+		// support quads but this could be done later if required
+		var int faceCount = pGeometry.getFaceCount()
+		var int i
+		for i = 0 to faceCount
+			pTriangleCount += pGeometry.getFaceAt( i ).getVertexCount() - 2
+		end
+	end
+	
+	
+	public func void export( Exporter exporter )
+		var String filename = pModel.getName().getName() + ".demodel"
+		var FileWriter writer = FileWriter.new( ( exporter.getPathModelDir() + filename ).getPath() )
+		
+		writeHeader( writer )
+		writeBones( writer )
+		writeTextures( writer )
+		writeTexCoordSets( writer )
+		writeLod0( writer )
+	end
+	
+	
+	private func void writeHeader( FileWriter writer )
+		writer.writeString( "Drag[en]gine Model" )
+		writer.writeUShort( 5 ) // version
+		writer.writeUShort( 0 ) // flags
+		
+		writer.writeUShort( 0 ) // bone count
+		writer.writeUShort( pGeometry.getMaterialCount() ) // texture count
+		writer.writeUShort( 1 ) // texture coordinate set count
+		writer.writeUShort( 1 ) // lod mesh count
+	end
+	
+	private func void writeBones( FileWriter writer )
+	end
+	
+	private func void writeTextures( FileWriter writer )
+		var int i, count = pGeometry.getMaterialCount()
+		for i = 0 to count
+			// texture name
+			if i < 9
+				writer.writeString8( "mat0" + ( i + 1 ) )
+				
+			else
+				writer.writeString8( "mat" + ( i + 1 ) )
+			end
+			
+			writer.writeUShort( 256 ) // texture width
+			writer.writeUShort( 256 ) // texture height
+			
+			// flags. supported are
+			// - 0x1: double sided
+			// - 0x2: decal
+			writer.writeUShort( 0 )
+		end
+	end
+	
+	private func void writeTexCoordSets( FileWriter writer )
+		writer.writeString8( "default" ) // name
+	end
+	
+	private func void writeLod0( FileWriter writer )
+		// flags. supported are
+		// - 0x1: has lod errors
+		// - 0x2: large model
+		writer.writeByte( 0 )
+		
+		writer.writeUShort( pGeometry.getNormalCount() ) // normal count
+		writer.writeUShort( pGeometry.getNormalCount() ) // tangent count
+		writer.writeUShort( 0 ) // weights count
+		writer.writeUShort( pGeometry.getVertexCount() ) // vertex count
+		writer.writeUShort( pTriangleCount ) // triangle count
+		writer.writeUShort( 0 ) // quad count
+		
+		writeLodWeights( writer )
+		writeLodVertices( writer )
+		writeLodTexCoords( writer )
+		writeLodTriangles( writer )
+		writeLodQuads( writer )
+	end
+	
+	private func void writeLodWeights( FileWriter writer )
+	end
+	
+	private func void writeLodVertices( FileWriter writer )
+		var float scale = pModel.getBaseScale() != null if pModel.getBaseScale().value() else 1
+		
+		pGeometry.forEachVertex( block Vector vertex
+			writer.writeUShort( 0 ) // weights index
+			Exporter.transformPosition( vertex * scale ).writeToFile( writer ) // position
+		end )
+	end
+	
+	private func void writeLodTexCoords( FileWriter writer )
+		var int i, vertexCount
+		
+		writer.writeUShort( pTriangleCount * 3 ) // tex coordinate count
+		
+		pGeometry.forEachFace( block GroffGeometryFace face
+			vertexCount = face.getVertexCount()
+			for i = 2 to vertexCount
+				Exporter.transformTexCoord( face.getTexCoordAt( i ) ).writeToFile( writer )
+				Exporter.transformTexCoord( face.getTexCoordAt( i - 1 ) ).writeToFile( writer )
+				Exporter.transformTexCoord( face.getTexCoordAt( 0 ) ).writeToFile( writer )
+			end
+		end )
+	end
+	
+	private func void writeLodTriangles( FileWriter writer )
+		var int i, faceCount = pGeometry.getFaceCount()
+		var int baseTexCoordIndex = 0
+		var GroffGeometryFace face
+		var int j, vertexCount
+		
+		for i = 0 to faceCount
+			face = pGeometry.getFaceAt( i )
+			vertexCount = face.getVertexCount()
+			
+			for j = 2 to vertexCount
+				writer.writeUShort( face.getMaterial() ) // texture index
+				
+				// vertex indices
+				writer.writeUShort( face.getVertexAt( j ) )
+				writer.writeUShort( face.getVertexAt( j - 1 ) )
+				writer.writeUShort( face.getVertexAt( 0 ) )
+				
+				// normal indices
+				writer.writeUShort( face.getNormalAt( j ) )
+				writer.writeUShort( face.getNormalAt( j - 1 ) )
+				writer.writeUShort( face.getNormalAt( 0 ) )
+				
+				// tangent indices
+				writer.writeUShort( face.getNormalAt( j ) )
+				writer.writeUShort( face.getNormalAt( j - 1 ) )
+				writer.writeUShort( face.getNormalAt( 0 ) )
+				
+				// texture coordinate indices
+				writer.writeUShort( baseTexCoordIndex + j )
+				writer.writeUShort( baseTexCoordIndex + j - 1 )
+				writer.writeUShort( baseTexCoordIndex )
+			end
+			
+			baseTexCoordIndex += ( vertexCount - 2 ) * 3
+		end
+	end
+	
+	private func void writeLodQuads( FileWriter writer )
+	end
+end

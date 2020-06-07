@@ -130,6 +130,10 @@ class GroffMaterial
 		pPids.forEach( ablock )
 	end
 	
+	public func PidFileEntry findPid( Block ablock )
+		return pPids.find( ablock ) cast PidFileEntry
+	end
+	
 	
 	public func void addColorMap( GroffImage image )
 		pColorMaps.add( image )

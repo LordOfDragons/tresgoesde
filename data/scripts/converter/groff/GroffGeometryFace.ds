@@ -95,6 +95,14 @@ class GroffGeometryFace
 		pVertices.add( vertex )
 	end
 	
+	public func int getVertexCount()
+		return pVertices.getCount()
+	end
+	
+	public func int getVertexAt( int index )
+		return pVertices.getAt( index ) cast int
+	end
+	
 	
 	public func void addTexCoord( Vector2 texCoord )
 		if texCoord == null
@@ -117,5 +125,13 @@ class GroffGeometryFace
 	
 	public func void addNormal( int normal )
 		pNormals.add( normal )
+	end
+	
+	public func int getNormalCount()
+		return pVertices.getCount()
+	end
+	
+	public func int getNormalAt( int index )
+		return pVertices.getAt( index ) cast int
 	end
 end

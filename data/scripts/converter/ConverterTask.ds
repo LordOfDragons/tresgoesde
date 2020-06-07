@@ -56,6 +56,8 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		loadTerrain //<! Load terrain
 		exportInstances //<! Export instances
 		exportWorld //<! Write world
+		exportModels //<! Write models
+		exportOcclusionMeshes //<! Write occlusion meshes
 		done //<! Task is done
 	end
 	
@@ -129,6 +131,12 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 				
 			case State.exportWorld
 				exportWorld()
+				
+			case State.exportModels
+				exportModels()
+				
+			case State.exportOcclusionMeshes
+				exportOcclusionMeshes()
 				
 			case State.done
 				giveUp()
@@ -444,8 +452,8 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		var int last = DEMath.min( pNextIndex + 10, count )
 		pCollector.forEach( pNextIndex, last, block GroffInstance instance
 			var ExportInstance einst = ExportInstance.new( instance )
-			einst.identify( pGroff, pPropertyClass, pPropertyVisible )
-			if einst.getClass() != null
+			einst.prepare( pGroff, pPropertyClass, pPropertyVisible )
+			if not einst.getClass().empty()
 				pExporter.addInstance( einst )
 			end
 		end )
@@ -457,7 +465,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		end
 	end
 	
-	// Export world
+	// Export world.
 	private func void exportWorld()
 		if pNextIndex == -1
 			pListener.log( "Export world..." )
@@ -480,6 +488,56 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			pExportWorld.finish( ( pExporter.getPathMapDir() + "map.deworld" ).getPath() )
 			pExportWorld = null
 			
+			pState = State.exportModels
+			pNextIndex = -1
+		end
+	end
+	
+	// Export models.
+	private func void exportModels()
+		if pNextIndex == -1
+			pListener.log( "Export models..." )
+			pCollector = Array.new()
+			pExporter.forEachModel( block GroffModel each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffModel model
+			ExportModel.new( model ).export( pExporter )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.exportOcclusionMeshes
+			pNextIndex = -1
+		end
+	end
+	
+	// Export occlusion meshes.
+	private func void exportOcclusionMeshes()
+		if pNextIndex == -1
+			pListener.log( "Export occlusion meshes..." )
+			pCollector = Array.new()
+			pExporter.forEachOcclusionMesh( block GroffModel each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		if pNextIndex < count
+			pCollector.forEach( pNextIndex, last, block GroffModel model
+				ExportOcclusionMesh.new( model ).export( pExporter )
+			end )
+		end
+		pNextIndex = last
+		
+		if last == count
 			pListener.log( "Done" )
 			pListener.succeeded()
 			cleanUp()
