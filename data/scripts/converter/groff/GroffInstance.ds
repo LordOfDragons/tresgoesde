@@ -31,7 +31,7 @@ class GroffInstance
 	private var GroffModel pModel
 	private var GroffName pName
 	private var DVector pPosition
-	private var DVector pRotation
+	private var Vector pRotation
 	private var float pScale
 	private var GroffValue pValueTable
 	
@@ -68,11 +68,11 @@ class GroffInstance
 		pPosition = position
 	end
 	
-	public func DVector getRotation()
+	public func Vector getRotation()
 		return pRotation
 	end
 	
-	public func void setRotation( DVector rotation )
+	public func void setRotation( Vector rotation )
 		if rotation == null
 			throw ENullPointer.new()
 		end

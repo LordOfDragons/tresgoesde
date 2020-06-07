@@ -1,0 +1,66 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.XML
+
+
+/**
+ * Export world.
+ */
+class ExportWorld
+	private var EasyXML pXmlWorld
+	private var EasyXMLElement pTagWorld
+	private var MutableID pObjectID
+	
+	
+	public func new( int objectCount )
+		pXmlWorld = EasyXML.new()
+		
+		pTagWorld = EasyXMLElement.new( EasyXMLElementType.tag )
+		pTagWorld.setTagName( "world" )
+		pXmlWorld.setRootElement( pTagWorld )
+		
+		var EasyXMLElement tag = pTagWorld.addTag( "gravity" )
+		tag.setAttribute( "x", 0 )
+		tag.setAttribute( "y", -9.81 )
+		tag.setAttribute( "z", 0 )
+		
+		pObjectID = MutableID.new( 1 )
+		pTagWorld.addDataTag( "nextObjectID", UniqueID.new( objectCount + 1 ).toHexString() )
+	end
+	
+	public func EasyXMLElement getTagWorld()
+		return pTagWorld
+	end
+	
+	public func UniqueID nextObjectID()
+		return pObjectID.nextID()
+	end
+	
+	public func void finish( String filename )
+		pXmlWorld.writeToFile( FileWriter.new( filename ), false )
+	end
+end

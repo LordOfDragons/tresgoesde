@@ -1,0 +1,301 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.XML
+
+
+/**
+ * Instance to export.
+ */
+class ExportInstance
+	private var GroffInstance pGroffInstance
+	
+	private var bool pIsPhysics
+	private var bool pIsTrigger
+	private var bool pIsModel
+	private var bool pIsOcclusion
+	private var bool pIsVisible
+	private var String pTpClass
+	
+	private var String pClass
+	private var StubWithProperties pProperties
+	private var GroffModel pModel
+	private var GroffModel pPhysics
+	private var GroffModel pOcclusion
+	
+	
+	public func new( GroffInstance groffInstance )
+		pGroffInstance = groffInstance
+		pTpClass = ""
+		pProperties = StubWithProperties.new()
+		pIsVisible = true
+	end
+	
+	
+	public func GroffInstance getGroffInstance()
+		return pGroffInstance
+	end
+	
+	
+	public func bool getIsPhysics()
+		return pIsPhysics
+	end
+	
+	public func bool getIsTrigger()
+		return pIsTrigger
+	end
+	
+	public func bool getIsModel()
+		return pIsModel
+	end
+	
+	public func bool getIsOcclusion()
+		return pIsOcclusion
+	end
+	
+	public func bool getIsVisible()
+		return pIsVisible
+	end
+	
+	public func String getTpClass()
+		return pTpClass
+	end
+	
+	
+	public func String getClass()
+		return pClass
+	end
+	
+	public func StubWithProperties getProperties()
+		return pProperties
+	end
+	
+	public func GroffModel getModel()
+		return pModel
+	end
+	
+	public func GroffModel getPhysics()
+		return pPhysics
+	end
+	
+	public func GroffModel getOcclusion()
+		return pOcclusion
+	end
+	
+	
+	public func void identify( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
+		var GroffModel model = pGroffInstance.getModel()
+		if model != null and model.getBaseScale() != null
+			model.setBaseScale( Float.new( pGroffInstance.getScale() ) )
+		end
+		
+		var GroffValue valueTable = pGroffInstance.getValueTable()
+		if valueTable.getType() == GroffValue.Type.group
+			var GroffValue property = valueTable.getProperty( propertyClass )
+			if property != null
+				pTpClass = property.getDataString()
+				pIsTrigger = getTriggerClasses().has( pTpClass )
+				pIsModel = getModelClasses().has( pTpClass )
+			end
+			
+			property = valueTable.getProperty( propertyVisible )
+			if property != null
+				pIsVisible = property.getDataBool()
+			end
+		end
+		
+		pIsPhysics = pGroffInstance.getName().getName().getAt( 0 ) == '$'
+		if pIsPhysics
+			return
+		end
+		
+		if pTpClass == null
+			pTpClass = "CInstance"
+		end
+		
+		pClass = pTpClass
+		pModel = pGroffInstance.getModel()
+		
+		if valueTable.getType() == GroffValue.Type.group
+			addProperties( groff, valueTable, "" )
+		end
+		
+		if model != null and model.getMapping() != null and model.getMapping().getMaterial() != null
+			var bool hasNonOccMat = false
+			var bool hasOccMat = false
+			
+			model.getMapping().getMaterial().forEachPid( block PidFileEntry pid
+				if pid != null
+					if pid.getOcclusion()
+						hasOccMat = true
+						
+					else
+						hasNonOccMat = true
+					end
+				end
+			end )
+			
+			if hasOccMat and not hasNonOccMat
+				pClass = "Occlusion"
+				pOcclusion = pModel
+				pIsOcclusion = true
+			end
+		end
+	end
+	
+	public func void export( Exporter exporter, ExportWorld world )
+		var EasyXMLElement tag, tagObject = world.getTagWorld().addTag( "object" )
+		tagObject.setAttribute( "id", world.nextObjectID().toHexString() )
+		
+		var DVector position = Exporter.transformPosition( pGroffInstance.getPosition() )
+		var Vector rotation = Exporter.transformRotation( pGroffInstance.getRotation() )
+		var float scale = pGroffInstance.getScale()
+		if pModel != null and pModel.getBaseScale() != null
+			scale /= pModel.getBaseScale().value()
+		end
+		
+		tagObject.addDataTag( "classname", pClass )
+		
+		tag = tagObject.addTag( "position" )
+		tag.setAttribute( "x", position.getX() )
+		tag.setAttribute( "y", position.getY() )
+		tag.setAttribute( "z", position.getZ() )
+		
+		tag = tagObject.addTag( "rotation" )
+		tag.setAttribute( "x", rotation.getX() )
+		tag.setAttribute( "y", rotation.getY() )
+		tag.setAttribute( "z", rotation.getZ() )
+		
+		tag = tagObject.addTag( "scaling" )
+		tag.setAttribute( "x", scale )
+		tag.setAttribute( "y", scale )
+		tag.setAttribute( "z", scale )
+		
+		tag = tagObject.addDataTag( "property", pGroffInstance.getName().getName() )
+		tag.setAttribute( "key", "tresId" )
+		
+		if pModel != null
+			tag = tagObject.addDataTag( "property", pModel.getName().getName() )
+			tag.setAttribute( "key", "component.model" )
+			
+			if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
+				tag = tagObject.addDataTag( "property", pModel.getName().getName() )
+				tag.setAttribute( "key", "component.skin" )
+			end
+		end
+		
+		if pOcclusion != null
+			tag = tagObject.addDataTag( "property", pOcclusion.getName().getName() ) // deIGPathOccMesh
+			tag.setAttribute( "key", "component.occlusionMesh" )
+		end
+		
+		if pModel != null and pModel.getGeometry() != null
+			var GroffGeometry geometry = pModel.getGeometry()
+			
+			var DVector bbmin = Exporter.transformPosition( DVector.new( geometry.getBoundingBoxMin() ) )
+			tag = tagObject.addDataTag( "property", "" + bbmin.getX() + " " + bbmin.getY() + " " + bbmin.getZ() )
+			tag.setAttribute( "key", "boundingBoxMin" )
+			
+			var DVector bbmax = Exporter.transformPosition( DVector.new( geometry.getBoundingBoxMax() ) )
+			tag = tagObject.addDataTag( "property", "" + bbmax.getX() + " " + bbmax.getY() + " " + bbmax.getZ() )
+			tag.setAttribute( "key", "boundingBoxMax" )
+		end
+		
+		pProperties.getPropertyKeys().forEach( block String key
+			tag = tagObject.addDataTag( "property", pProperties.getPropertyValueFor( key, null ) )
+			tag.setAttribute( "key", key )
+		end )
+	end
+	
+	
+	private func void addProperties( Groff groff, GroffValue table, String prefix )
+		table.forEachProperty( block GroffValue data
+			var String name = data.getName().getName()
+			if name.equals( "Class" ) or name.equals( "Diffuse" ) // "SubMaterial{:2d}"
+				return null
+			end
+			
+			select data.getType()
+			case GroffValue.Type.boolean
+				pProperties.setPropertyBoolFor( prefix + name, data.getDataBool() )
+				
+			case GroffValue.Type.character
+				pProperties.setPropertyValueFor( prefix + name, data.getDataByte().toString() )
+				
+			case GroffValue.Type.integer
+				pProperties.setPropertyIntFor( prefix + name, data.getDataInt() )
+				
+			case GroffValue.Type.floating
+				pProperties.setPropertyFloatFor( prefix + name, data.getDataFloat() )
+				
+			case GroffValue.Type.string
+				var String string = data.getDataString()
+				if string.substring( -4 ).toLower().equals( ".bmp" )
+					string = string.substring( 0, -4 ) + ".png"
+				end
+				pProperties.setPropertyValueFor( prefix + name, string )
+				
+			case GroffValue.Type.group
+				addProperties( groff, data, prefix + name )
+			end
+		end )
+	end
+	
+	
+	static private var Array pTriggerClasses = null
+	static private var Array pModelClasses = null
+	
+	static private func Array getTriggerClasses()
+		if pTriggerClasses == null
+			pTriggerClasses = Array.new()
+			pTriggerClasses.add( "CBooleanTrigger" )
+			pTriggerClasses.add( "CCollisionTrigger" )
+			pTriggerClasses.add( "CCreatureTrigger" )
+			pTriggerClasses.add( "CLocationTrigger" )
+			pTriggerClasses.add( "CMoreMassTrigger" )
+			pTriggerClasses.add( "CObjectTrigger" )
+			pTriggerClasses.add( "CSequenceTrigger" )
+			pTriggerClasses.add( "CStartTrigger" )
+			pTriggerClasses.add( "CTimerTrigger" )
+			pTriggerClasses.add( "CVariableTrigger" )
+		end
+		return pTriggerClasses
+	end
+	
+	static private func Array getModelClasses()
+		if pModelClasses == null
+			pModelClasses = Array.new()
+			pModelClasses.add( "CAnimal" )
+			pModelClasses.add( "CEntityAttached" )
+			pModelClasses.add( "CEntityWater" )
+			pModelClasses.add( "CGun" )
+			pModelClasses.add( "CInstance" )
+			pModelClasses.add( "CMuzzleFlash" )
+			pModelClasses.add( "Player" )
+		end
+		return pModelClasses
+	end
+end

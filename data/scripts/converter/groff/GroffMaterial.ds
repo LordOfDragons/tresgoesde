@@ -126,6 +126,10 @@ class GroffMaterial
 		return pPids.getAt( index ) cast PidFileEntry
 	end
 	
+	public func void forEachPid( Block ablock )
+		pPids.forEach( ablock )
+	end
+	
 	
 	public func void addColorMap( GroffImage image )
 		pColorMaps.add( image )
@@ -169,7 +173,6 @@ class GroffMaterial
 	
 	
 	public func void calculatePids( PidFile pidFile )
-		// see GroffImage.updatePid()
 		pPids.removeAll()
 		
 		var int i
@@ -180,55 +183,18 @@ class GroffMaterial
 			
 			if not combinedName.empty()
 				var float diffuse = getDiffuseValueAt( i )
-				
 				combinedName = combinedName.toLower().replace( '\\', '/' )
-				pPids.add( pidFile.getPidByIdOrNull( PidFile.calculatePid( combinedName, diffuse ) ) )
-				//GameApp.getApp().getConsole().addMessage("pidMaterial(" + colorMap + "," \
-				//	+ bumpMap + "," + diffuse + ") " + PidFile.calculatePid(combinedName, diffuse) + " => " + pPids.getAt(i))
+				
+				var PidFileEntry pid = pidFile.getPidByIdOrNull( PidFile.calculatePid( combinedName, diffuse ) )
+				pPids.add( pid )
+				
+				if pid != null
+					pid.setGroffMaterial( this )
+				end
 				
 			else
 				pPids.add( null )
 			end
 		end
-		
-		// hm... i don't know anymore why this is required
-		/*
-		var String combinedName
-		var int i
-		
-		for i = 0 to pMaterialCount
-			var String colorMap = getColorMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
-			var String bumpMap = getBumpMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
-			var String opacityMap = getOpacityMapAt( i ).getName().getName().toLower().replace( '\\', '/' )
-			var float diffuse = getDiffuseValueAt( i )
-			
-			if not colorMap.empty()
-				GameApp.getApp().getConsole().addMessage("pidColorMap(" + colorMap + "," + diffuse + ") " \
-					+ PidFile.calculatePid(colorMap, diffuse))
-				getColorMapAt( i ).setPid( pidFile.getPidByIdOrNull( PidFile.calculatePid( colorMap, diffuse ) ) )
-				
-			else
-				getColorMapAt( i ).setPid( null )
-			end
-			
-			if not bumpMap.empty()
-				GameApp.getApp().getConsole().addMessage("pidBumpMap(" + bumpMap + "," + diffuse + ") " \
-					+ PidFile.calculatePid(bumpMap, diffuse))
-				getBumpMapAt( i ).setPid( pidFile.getPidByIdOrNull( PidFile.calculatePid( bumpMap, diffuse ) ) )
-				
-			else
-				getBumpMapAt( i ).setPid( null )
-			end
-			
-			if not opacityMap.empty()
-				GameApp.getApp().getConsole().addMessage("pidOpacityMap(" + opacityMap + "," + diffuse + ") " \
-					+ PidFile.calculatePid(opacityMap, diffuse))
-				getOpacityMapAt( i ).setPid( pidFile.getPidByIdOrNull( PidFile.calculatePid( opacityMap, diffuse ) ) )
-				
-			else
-				getOpacityMapAt( i ).setPid( null )
-			end
-		end
-		*/
 	end
 end

@@ -31,13 +31,11 @@ pin Dragengine
 class GroffImage
 	private var int pId
 	private var GroffName pName
-	private var PidFileEntry pPid
 	
 	
 	public func new( int id, GroffName name )
 		pId = id
 		pName = name
-		//updatePid( 1 )
 	end
 	
 	
@@ -47,23 +45,5 @@ class GroffImage
 	
 	public func GroffName getName()
 		return pName
-	end
-	
-	public func PidFileEntry getPid()
-		return pPid
-	end
-	
-	public func void setPid( PidFileEntry pid )
-		pPid = pid
-	end
-	
-	
-	public func void updatePid( PidFile pidFile, float diffuse )
-		// in the original code the second value added ontop of it are the first 4 bytes of
-		// the CMaterial object. the first 4 bytes are occupied by the float rvDiffuse value
-		// which defaults to 1. theoretically though it is possible somebody changes this
-		// value using the 'Diffuse' property in the value table either directly or using
-		// SubMaterialXX.
-		pPid = pidFile.getPidById( PidFile.calculatePid( pName.getName().toLower().replace( '\\', '/' ), diffuse ) )
 	end
 end

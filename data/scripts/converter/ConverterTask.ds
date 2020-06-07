@@ -53,7 +53,9 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		propagateDiffuse //<! Propagate 'Diffuse' property in instances to materials
 		propagateSubMaterial //<! Propagate 'SubMaterialXX' properties in instances to materials
 		calcMaterialPids //<! Calculate material PIDs
-		matchGroffMaterials //<! Match groff materials to pids
+		loadTerrain //<! Load terrain
+		exportInstances //<! Export instances
+		exportWorld //<! Write world
 		done //<! Task is done
 	end
 	
@@ -75,6 +77,10 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 	private var GroffValueName pPropertyNameDiffuse
 	private var Array pPropertySubMaterial
 	
+	private var Exporter pExporter
+	private var ExportWorld pExportWorld
+	private var GroffValueName pPropertyClass
+	private var GroffValueName pPropertyVisible
 	
 	
 	// Create converter task.
@@ -84,6 +90,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		pInputDir = File.new( GameApp.getGameApp().getConverter().getPathTrespasser() ) \
 			+ File.new( baseFilename ).getParent()
 		pOutputDir = File.new( GameApp.getGameApp().getConverter().getPathDragengine(), pMapName )
+		pExporter = Exporter.new( pOutputDir )
 		pListener = listener
 		pState = State.clear
 	end
@@ -114,8 +121,14 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			case State.loadPidFile
 				loadPidFile()
 				
-			case State.matchGroffMaterials
-				matchGroffMaterials()
+			case State.loadTerrain
+				loadTerrain()
+				
+			case State.exportInstances
+				exportInstances()
+				
+			case State.exportWorld
+				exportWorld()
 				
 			case State.done
 				giveUp()
@@ -184,7 +197,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		pState = State.loadGroff
 		
 		// DEBUG
-		/*var FileWriter writer = FileWriter.new( "/overlay/debug_pids" )
+		/*var FileWriter writer = FileWriter.new( "/converter/debug_pids" )
 		pPidFile.forEachPid( block PidFileEntry each
 			writer.writeString( "pid " + each.getPid() + "\n" )
 		end )*/
@@ -371,12 +384,12 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		pNextIndex = last
 		
 		if last == count
-			pState = State.matchGroffMaterials
+			pState = State.loadTerrain
 		end
 	end
 	
-	// Matching groff materials to pid file entries
-	private func void matchGroffMaterials()
+	// Load terrain
+	private func void loadTerrain()
 		/*
 		if pNextIndex == -1
 			pListener.log( "Matching groff materials to pid file entries..." )
@@ -409,10 +422,68 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		pNextIndex = last
 		
 		if last == count*/
+			pState = State.exportInstances
+			pNextIndex = -1
+		//end
+	end
+	
+	// Export instances
+	private func void exportInstances()
+		if pNextIndex == -1
+			pListener.log( "Export instances..." )
+			pPropertyClass = pGroff.getValueNameByNameOrNull( "Class" )
+			pPropertyVisible = pGroff.getValueNameByNameOrNull( "Visible" )
+			pCollector = Array.new()
+			pGroff.forEachInstance( block GroffInstance each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block GroffInstance instance
+			var ExportInstance einst = ExportInstance.new( instance )
+			einst.identify( pGroff, pPropertyClass, pPropertyVisible )
+			if einst.getClass() != null
+				pExporter.addInstance( einst )
+			end
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pState = State.exportWorld
+			pNextIndex = -1
+		end
+	end
+	
+	// Export world
+	private func void exportWorld()
+		if pNextIndex == -1
+			pListener.log( "Export world..." )
+			pCollector = Array.new()
+			pExporter.forEachInstance( block ExportInstance each
+				pCollector.add( each )
+			end )
+			pExportWorld = ExportWorld.new( pExporter.getInstanceCount() )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		pCollector.forEach( pNextIndex, last, block ExportInstance instance
+			instance.export( pExporter, pExportWorld )
+		end )
+		pNextIndex = last
+		
+		if last == count
+			pExportWorld.finish( ( pExporter.getPathMapDir() + "map.deworld" ).getPath() )
+			pExportWorld = null
+			
 			pListener.log( "Done" )
 			pListener.succeeded()
 			cleanUp()
-		//end
+		end
 	end
 	
 	

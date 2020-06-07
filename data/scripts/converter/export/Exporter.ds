@@ -1,0 +1,145 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE
+
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+
+
+/**
+ * Exporter.
+ */
+class Exporter
+	private var File pPathMapDir
+	
+	private var Array pInstances
+	private var Set pModels
+	private var Set pOcclusionMeshes
+	private var Set pSkins
+	
+	
+	public func new( File pathMapDir )
+		pPathMapDir = pathMapDir
+		
+		pInstances = Array.new()
+		pModels = Set.new()
+		pOcclusionMeshes = Set.new()
+		pSkins = Set.new()
+	end
+	
+	
+	public func File getPathMapDir()
+		return pPathMapDir
+	end
+	
+	
+	public func int getInstanceCount()
+		return pInstances.getCount()
+	end
+	
+	public func void addInstance( Object instance )
+		pInstances.add( instance )
+	end
+	
+	public func void forEachInstance( Block ablock )
+		pInstances.forEach( ablock )
+	end
+	
+	
+	public func void addModel( GroffModel model )
+		pModels.add( model )
+	end
+	
+	public func void addOcclusionMesh( GroffModel model )
+		pOcclusionMeshes.add( model )
+	end
+	
+	public func void addSkin( GroffMaterial material )
+		pSkins.add( material )
+	end
+	
+	
+	static public func DVector transformPosition( DVector position )
+		return DVector.new( position.getX(), position.getZ(), position.getY() )
+	end
+	
+	static public func Vector transformRotation( Vector rotation )
+		// return [math.degrees(rotation[0]), math.degrees(rotation[2]), math.degrees(rotation[1])]
+		return matrixToEuler( convertMatrix( tresRotationMatrix( rotation ) ) )
+	end
+	
+	static public func DMatrix tresRotationMatrix( Vector rotation )
+		var float sx = DEMath.sin( rotation.getX() )
+		var float cx = DEMath.cos( rotation.getX() )
+		var float sy = DEMath.sin( rotation.getY() )
+		var float cy = DEMath.cos( rotation.getY() )
+		var float sz = DEMath.sin( rotation.getZ() )
+		var float cz = DEMath.cos( rotation.getZ() )
+		var float a = sx * sy
+		var float b = cx * sy
+		return DMatrix.new( \
+			cy * cz, a * cz - cx * sz, b * cz + sx * sz, 0, \
+			cy * sz, a * sz + cx * cz, b * sz - sx * cz, 0, \
+			-sy, sx * cy, cx * cy, 0, \
+			0, 0, 0, 1 )
+	end
+	
+	static public func DMatrix convertMatrix( DMatrix matrix )
+		// epsylonAxisX = tresAxisX
+		// epsylonAxisY = tresAxisZ
+		// epsylonAxisZ = tresAxisY
+		// rotation order XYZ
+		/*
+		tax = (matrix[0][0], matrix[1][0], matrix[2][0])
+		tay = (matrix[0][2], matrix[1][2], matrix[2][2])
+		taz = (matrix[0][1], matrix[1][1], matrix[2][1])
+		eax = (tax[0], tax[2], tax[1])
+		eay = (tay[0], tay[2], tay[1])
+		eaz = (taz[0], taz[2], taz[1])
+		row1 = (eax[0], eay[0], eaz[0])
+		row2 = (eax[1], eay[1], eaz[1])
+		row3 = (eax[2], eay[2], eaz[2])
+		*/
+		return DMatrix.new( \
+			matrix.get11(), matrix.get13(), matrix.get12(), 0, \
+			matrix.get31(), matrix.get33(), matrix.get32(), 0, \
+			matrix.get21(), matrix.get23(), matrix.get22(), 0, \
+			0, 0, 0, 1 )
+	end
+	
+	static public func Vector matrixToEuler( DMatrix matrix )
+		if matrix.get23() < 1
+			if matrix.get23() > -1
+				return Vector.new( \
+					DEMath.asin( matrix.get23() ), \
+					DEMath.atan2( -matrix.get13(), matrix.get33() ), \
+					DEMath.atan2( -matrix.get21(), matrix.get22() ) )
+			else // undefined
+				return Vector.new( -90, 0, -DEMath.atan2( matrix.get31(), matrix.get11() ) )
+			end
+			
+		else // undefined
+			return Vector.new( 90, 0, DEMath.atan2( matrix.get31(), matrix.get11() ) )
+		end
+	end
+end

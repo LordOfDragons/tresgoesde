@@ -663,7 +663,7 @@ class GroffLoader extends FrameUpdateListener
 				instance.setModel( pGroff.getModelByIdOrNull( pReader.readUInt() ) )
 				instance.setName( pGroff.getNameById( pReader.readUInt() ) )
 				instance.setPosition( readDVector() )
-				instance.setRotation( readDVector() )
+				instance.setRotation( readVector() )
 				instance.setScale( pReader.readFloat() )
 				instance.setValueTable( pGroff.getValueByIdOrNull( pReader.readUInt() ) )
 				pReader.movePosition( 4 ) // UInt: 1=hasValueTable 0=hasNoValueTable

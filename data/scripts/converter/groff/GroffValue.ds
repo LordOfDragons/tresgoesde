@@ -76,8 +76,24 @@ class GroffValue
 		return pData
 	end
 	
+	public func bool getDataBool()
+		return pData cast bool
+	end
+	
+	public func byte getDataByte()
+		return pData cast byte
+	end
+	
+	public func int getDataInt()
+		return pData cast int
+	end
+	
 	public func float getDataFloat()
 		return pData cast float
+	end
+	
+	public func String getDataString()
+		return pData cast String
 	end
 	
 	public func void setData( Object data )
@@ -92,5 +108,9 @@ class GroffValue
 			end ) cast GroffValue
 		end
 		return null
+	end
+	
+	public func void forEachProperty( Block ablock )
+		( pData cast Array ).forEach( ablock )
 	end
 end
