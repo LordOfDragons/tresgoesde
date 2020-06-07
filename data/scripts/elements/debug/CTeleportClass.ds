@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CTeleportClass extends ElementClass
+	public func new() this( "Teleport" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CTeleportClass.new( classname )
+	end
+	
+	public func void createAndAddElement( StubElement stub, GameWorld gameWorld )
+		// add to GameWorld list of teleport targets
+	end
+end

@@ -19,7 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-namespace TresGoesDE
+namespace TresGoesDE.Converting
 
 pin Dragengine.Gui.Layouts
 pin Dragengine.Gui.Events
@@ -64,6 +64,16 @@ class Converter
 	// fill list model with file titles of converted scene.
 	public func void fillModelConvertedScenes( DefaultListModel model )
 		model.removeAll()
+		
+		FileSystem.searchFiles( pPathDragengine, false, block String path, FileType type
+			if type == FileType.directory
+				var File file = File.new( path )
+				if FileSystem.existsFile( ( file + "map.deworld" ).getPath() )
+					model.add( file.getName() )
+				end
+			end
+			return true
+		end )
 	end
 	
 	// fill list model with file titles of convertable scene.

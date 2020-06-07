@@ -19,7 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-namespace TresGoesDE
+namespace TresGoesDE.Converting
 
 pin Dragengine.Gui.Layouts
 pin Dragengine.Gui.Events
@@ -58,6 +58,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		exportWorld //<! Write world
 		exportModels //<! Write models
 		exportOcclusionMeshes //<! Write occlusion meshes
+		exportSkins //<! Write skins
 		done //<! Task is done
 	end
 	
@@ -137,6 +138,9 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 				
 			case State.exportOcclusionMeshes
 				exportOcclusionMeshes()
+				
+			case State.exportSkins
+				exportSkins()
 				
 			case State.done
 				giveUp()
@@ -533,6 +537,32 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		if pNextIndex < count
 			pCollector.forEach( pNextIndex, last, block GroffModel model
 				ExportOcclusionMesh.new( model ).export( pExporter )
+			end )
+		end
+		pNextIndex = last
+		
+		if last == count
+			pState = State.exportSkins
+			pNextIndex = -1
+		end
+	end
+	
+	// Export skins.
+	private func void exportSkins()
+		if pNextIndex == -1
+			pListener.log( "Export skins..." )
+			pCollector = Array.new()
+			pExporter.forEachSkin( block GroffModel each
+				pCollector.add( each )
+			end )
+			pNextIndex = 0
+		end
+		
+		var int count = pCollector.getCount()
+		var int last = DEMath.min( pNextIndex + 10, count )
+		if pNextIndex < count
+			pCollector.forEach( pNextIndex, last, block GroffModel model
+				ExportSkin.new( model ).export( pExporter )
 			end )
 		end
 		pNextIndex = last

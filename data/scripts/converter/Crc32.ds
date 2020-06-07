@@ -27,7 +27,7 @@
 			pTable.add( USA.
  */
 
-namespace TresGoesDE
+namespace TresGoesDE.Converting
 
 
 pin Dragengine.Gui

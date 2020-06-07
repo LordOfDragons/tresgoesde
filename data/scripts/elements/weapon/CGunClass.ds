@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CGunClass extends CInstanceClass
+	public func new() this( "CGun" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CGunClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CGun.new( this )
+	end
+end

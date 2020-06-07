@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CEntityWaterClass extends CInstanceClass
+	public func new() this( "CEntityWater" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CEntityWaterClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CEntityWater.new( this )
+	end
+end

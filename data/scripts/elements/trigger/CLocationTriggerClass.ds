@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CLocationTriggerClass extends CInstanceClass
+	public func new() this( "CLocationTrigger" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CLocationTriggerClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CLocationTrigger.new( this )
+	end
+end

@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CMagnetClass extends CInstanceClass
+	public func new() this( "CMagnet" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CMagnetClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CMagnet.new( this )
+	end
+end

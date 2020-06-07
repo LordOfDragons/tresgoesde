@@ -1,0 +1,17 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+
+class CLocationTrigger extends CInstance
+	public func new( CLocationTriggerClass eclass ) super( eclass )
+	end
+	
+	
+	public func void init( StubElement stub )
+		super.init( stub )
+	end
+end

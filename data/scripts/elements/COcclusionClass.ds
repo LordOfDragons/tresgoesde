@@ -1,0 +1,24 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class COcclusionClass extends SimpleElementClass
+	public func new() this( "Occlusion" )
+	end
+	
+	public func new( String className ) super( className, GameApp.getApp().getLoaders() )
+		getComponent().getComponent().getSkin().setPath( "/shareddata/materials/empty.deskin" )
+		getCollider().setGhost()
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return COcclusionClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return COcclusion.new( this )
+	end
+end

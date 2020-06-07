@@ -21,6 +21,8 @@
 
 namespace TresGoesDE
 
+pin TresGoesDE.Elements
+
 pin Dragengine.CameraDirectors
 pin Dragengine.Gui
 pin Dragengine.Scenery
@@ -36,28 +38,52 @@ class StartGame extends WindowGameWorld.Loader
 		setPathWorld( pathWorld )
 	end
 	
+	
+	public func void startLoading()
+		super.startLoading()
+		GameApp.getGameApp().getWindowMain().setVisible( false )
+	end
+	
 	public func void onLoadWorldFinished()
-		var GameApp app = BaseGameApp.getApp() cast GameApp
+		var GameApp app = GameApp.getGameApp()
 		var GameWorld gameWorld = getStubWorld().getGameWorld()
 		
-		var ElementClass eclass = app.getElementClassList().getNamed( "Actor" )
-		var UniqueID id = app.getIDGenerator().nextID()
-		var BaseActor player = StubElement.new( eclass, id ).createElement() cast BaseActor
-		player.getAIAction().setAction( BAAFirstPerson.new() )
-		gameWorld.getSpawnPoints().getNamed( "player" ).spawn( gameWorld, player )
+		// create player actor
+		var ElementClass eclass = app.getElementClassList().getNamed( "Player" )
+		var StubElement stub = StubElement.new( eclass, app.getIDGenerator().nextID() )
+		
+		var CPlayer player = stub.createElement() cast CPlayer
+		
+// 		gameWorld.getSpawnPoints().getNamed( "player" ).spawn( gameWorld, player )
+			// TEMP HACK
+			var SpawnPoint spawn = SpawnPoint.new( "player" )
+			spawn.setPosition( DVector.new( 2.2302 + 0.6, 2.2539, -3.1609 ) )
+			spawn.setOrientation( Quaternion.new() )
+			spawn.spawn( gameWorld, player )
+			// TEMP HACK
+			
+			// TEMP HACK
+			var SkyInstance sky = SkyInstance.new()
+			sky.setSky( app.getLoaders().getSky().loadFromFile( "/content/skies/static.desky" ) )
+			gameWorld.getWorld().addSky( sky )
+			// TEMP HACK
 		
 		player.getPlayerControllable().takeControl()
 		
 		getWindow().setCameraDirector( PlayerControlledActorCameraDirector.new() )
 		
 		super.onLoadWorldFinished()
+		app.getWindowGameWorld().setVisible( true )
 		app.setInputProcessorBindings()
 		app.finishLoadGameWorld()
 	end
 	
 	public func void onLoadWorldFailed()
 		super.onLoadWorldFailed()
-		BaseGameApp.getApp().cancelLoadGameWorld()
-		Engine.quit()
+		
+		var GameApp app = GameApp.getGameApp()
+		app.cancelLoadGameWorld()
+		app.getWindowGameWorld().setVisible( false )
+		app.getWindowMain().setVisible( true )
 	end
 end

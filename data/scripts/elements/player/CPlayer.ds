@@ -1,0 +1,29 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Gui
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+
+class CPlayer extends BaseActor
+// 	private var Array pPoseModels
+	
+	
+	public func new( CPlayerClass eclass ) super( eclass )
+// 		this.pPoseModels = Array.new()
+	end
+	
+	
+	public func void init( StubElement stub )
+		super.init( stub )
+		/*
+		var int i
+		for i = 0 to 13
+			this.pPoseModels.add( world.getModel( stub.getPropertyValueFor( \
+				"A" + ( i < 10 if "0" else "" ) + i, null ) ) )
+		end
+		*/
+	end
+end

@@ -21,6 +21,8 @@
 
 namespace TresGoesDE
 
+pin TresGoesDE.Converting
+
 pin Dragengine.Gui.Layouts
 pin Dragengine.Gui.Events
 pin Dragengine.Scenery

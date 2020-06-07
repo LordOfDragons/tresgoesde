@@ -21,6 +21,9 @@
 
 namespace TresGoesDE
 
+pin TresGoesDE.Converting
+pin TresGoesDE.Elements
+
 pin Dragengine.Gui.Layouts
 pin Dragengine.Gui.Events
 pin Dragengine.Scenery
@@ -70,34 +73,36 @@ class GameApp extends BaseGameApp
 	end
 	
 	public func void launchApplication()
+		getWindowGameWorld().addWidget( ShoutConsole.new( getConsole() ) )
 		getWindowGameWorld().setVisible( false )
 		
 		pWindowMain = WindowMain.new()
 		pWindowMain.updateListScenes()
-		
-		/*
-		// BaseGameApp adds a WindowConsole which can be toggled by pressing F1 key. Adding
-		// a ShoutConsole shows the last messages without needing to show the console.
-		getWindowGameWorld().addWidget( ShoutConsole.new( getConsole() ) )
-		
-		// Logging can be done by adding messages to the console
-		getConsole().addMessage( "Loading world..." )
-		
-		// startLoadGameWorld is a simple way to start loading a game world into the
-		// WindowGameWorld created by BaseGameApp. StartGame is a script class created
-		// alongside this application class. It will be notified when the world loading
-		// finishes and contains the required code to finish starting the game.
-		// 
-		// To use this create a world file and change the filename
-		startLoadGameWorld( StartGame.new( getWindowGameWorld(), "/content/world/game.deworld" ) )
-		*/
 	end
 	
 	protected func void createAndAddElementClasses()
 		super.createAndAddElementClasses()
 		
 		var ElementClassList eclist = getElementClassList()
-		//eclist.add(MyElementClassClass.new())
+		eclist.add( CInstanceClass.new() )
+		eclist.add( CPlayerClass.new() )
+		eclist.add( CAnimalClass.new() )
+		eclist.add( CGunClass.new() )
+		eclist.add( CEntityAttachedClass.new() )
+		eclist.add( CEntityWaterClass.new() )
+		eclist.add( CTerrainPlacementClass.new() )
+		eclist.add( CMagnetClass.new() )
+		eclist.add( CMuzzleFlashClass.new() )
+		eclist.add( CTerrainObjClass.new() )
+		eclist.add( COcclusionClass.new() )
+		eclist.add( CLocationTriggerClass.new() )
+		eclist.add( CStartTriggerClass.new() )
+		eclist.add( CTeleportClass.new() )
+		eclist.add( CParticlesClass.new() )
+		eclist.add( CCollisionTriggerClass.new() )
+		eclist.add( CAICommandClass.new() )
+		eclist.add( CPlayerSettingsClass.new() )
+		eclist.add( CSkyClass.new() )
 		
 		getLoaders().getElementClass().addXmlElementClasses( eclist, "/content/models", true )
 	end

@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CParticlesClass extends CInstanceClass
+	public func new() this( "CParticles" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CParticlesClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CParticles.new( this )
+	end
+end

@@ -19,7 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-namespace TresGoesDE
+namespace TresGoesDE.Converting
 
 
 pin Dragengine.Preloading
@@ -167,7 +167,7 @@ class ExportInstance
 				tag = tagObject.addDataTag( "property", \
 					( exporter.getPathSkinDir() + ( pModel.getName().getName() + ".deskin" ) ).getPath() )
 				tag.setAttribute( "key", "component.skin" )
-				exporter.addSkin( pModel.getMapping().getMaterial() )
+				exporter.addSkin( pModel )
 			end
 		end
 		

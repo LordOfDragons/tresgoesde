@@ -1,0 +1,24 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+
+
+
+class CPlayerClass extends BaseActorClass
+	public func new() this( "Player" )
+	end
+	
+	public func new( String className ) super( className )
+		getComponent().getComponent().getRig().setPath( "/content/models/player.derig" )
+		getAIAction().setActionFactory( PABasic.Factory.new() )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CPlayerClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CPlayer.new( this )
+	end
+end

@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CMuzzleFlashClass extends CInstanceClass
+	public func new() this( "CMuzzleFlash" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CMuzzleFlashClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CMuzzleFlash.new( this )
+	end
+end

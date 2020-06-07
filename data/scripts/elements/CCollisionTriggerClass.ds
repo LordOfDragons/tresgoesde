@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CCollisionTriggerClass extends CInstanceClass
+	public func new() this( "CCollisionTrigger" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CCollisionTriggerClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CCollisionTrigger.new( this )
+	end
+end

@@ -40,6 +40,14 @@ class WindowMain extends Window
 		end
 		
 		public func void onAction( ActionEvent event )
+			var String mapName = pWindowMain.getSelectedScene()
+			if mapName == null
+				return
+			end
+			
+			var GameApp app = GameApp.getGameApp()
+			var String pathWorld = ( File.new( app.getConverter().getPathDragengine() ) + mapName + "map.deworld" ).getPath()
+			app.startLoadGameWorld( StartGame.new( app.getWindowGameWorld(), pathWorld ) )
 		end
 	end
 	
@@ -107,6 +115,16 @@ class WindowMain extends Window
 		doLayout()
 		
 		GameApp.getApp().getDesktop().addWindow( this )
+	end
+	
+	// Selected scene or null.
+	public func String getSelectedScene()
+		if pModelScenes.getSelected() != -1
+			return pModelScenes.getAt( pModelScenes.getSelected() ) cast String
+			
+		else
+			return null
+		end
 	end
 	
 	

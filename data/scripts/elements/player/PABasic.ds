@@ -1,0 +1,47 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.LoadSave
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+class PABasic extends BAAFirstPerson
+	public class Factory implements PersistencyFactory, ECBehaviorActorAIAction.ActionFactory
+		public static fixed var String NAME = "PABasic"
+		
+		public func new()
+		end
+		
+		public func Persistable readObjectFromFile( PersistencyEnvironment env, FileReader reader )
+			return PABasic.new()
+		end
+		
+		public static func void registerFactory( Persistency persistency )
+			persistency.addFactory( NAME, Factory.new() )
+		end
+		
+		public func BaseActorAction createAction( ECBehaviorActorAIAction.Instance instance )
+			return PABasic.new()
+		end
+	end
+	
+	public func new()
+	end
+	
+	
+	
+	public func void activate( BehaviorElement actor )
+		super.activate( actor )
+	end
+	
+	protected func void updateAICollider( float elapsed )
+		// no terrain yet
+		colliderAI.setFromLocomotion( locomotion )
+	end
+	
+	
+	public func void log( String message )
+		GameApp.getApp().getConsole().addMessage( className().split( '.' ).getAt( -1 ).toString() \
+			+ "(" + actor.getPosition() + "): " + message )
+	end
+end

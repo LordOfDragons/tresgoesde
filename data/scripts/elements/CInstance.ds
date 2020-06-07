@@ -1,0 +1,19 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+
+class CInstance extends SimpleElement
+	public func new( CInstanceClass eclass ) super( eclass )
+	end
+	
+	
+	public func void init( StubElement stub )
+		super.init( stub )
+		
+		this.setVisible( stub.getPropertyBoolFor( "Visible", true ) )
+	end
+end

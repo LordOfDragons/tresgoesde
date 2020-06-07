@@ -1,0 +1,71 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+
+pin Dragengine.Preloading
+pin Dragengine.Scenery
+pin Dragengine.XML
+
+
+/**
+ * Export skin.
+ */
+class ExportSkin
+	private var GroffModel pModel
+	private var GroffMaterial pMaterial
+	
+	
+	public func new( GroffModel model )
+		pModel = model
+		pMaterial = model.getMapping().getMaterial()
+	end
+	
+	
+	public func void export( Exporter exporter )
+		var EasyXML xmlSkin = EasyXML.new()
+		
+		var EasyXMLElement tagSkin = EasyXMLElement.new( EasyXMLElementType.tag )
+		tagSkin.setTagName( "skin" )
+		xmlSkin.setRootElement( tagSkin )
+		
+		var int i, materialCount = pMaterial.getMaterialCount()
+		for i = 0 to materialCount
+			writeTexture( exporter, i, tagSkin )
+		end
+		
+		var String filename = pModel.getName().getName() + ".deskin"
+		xmlSkin.writeToFile( FileWriter.new( ( exporter.getPathSkinDir() + filename ).getPath() ), false )
+	end
+	
+	
+	private func void writeTexture( Exporter exporter, int index, EasyXMLElement tagSkin )
+		var EasyXMLElement tagTexture = tagSkin.addTag( "texture" )
+		tagTexture.setAttribute( "name", "mat" + ( index < 9 if "0" else "" ) + ( index + 1 ) )
+		
+		var EasyXMLElement tagProperty = tagTexture.addTag( "color" )
+		tagProperty.setAttribute( "property", "color" )
+		tagProperty.setAttribute( "r", 0.65 )
+		tagProperty.setAttribute( "g", 0.65 )
+		tagProperty.setAttribute( "b", 0.65 )
+	end
+end

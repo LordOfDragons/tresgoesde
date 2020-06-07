@@ -1,0 +1,22 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+class CInstanceClass extends SimpleElementClass
+	public func new() this( "CInstance" )
+	end
+	
+	public func new( String className ) super( className )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return CInstanceClass.new( classname )
+	end
+	
+	protected func Element createElement()
+		return CInstance.new( this )
+	end
+end
