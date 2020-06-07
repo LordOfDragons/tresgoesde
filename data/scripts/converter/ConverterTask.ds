@@ -54,6 +54,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		propagateSubMaterial //<! Propagate 'SubMaterialXX' properties in instances to materials
 		calcMaterialPids //<! Calculate material PIDs
 		loadTerrain //<! Load terrain
+		loadSwp //<! Load swp
 		exportInstances //<! Export instances
 		exportWorld //<! Write world
 		exportModels //<! Write models
@@ -74,6 +75,8 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 	private var Groff pGroff
 	private var PidFileLoader pPidFileLoader
 	private var PidFile pPidFile
+	private var SpzFile pSpzFile
+	private var SwpFile pSwpFile
 	
 	private var int pNextIndex
 	private var Array pCollector
@@ -126,6 +129,9 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 				
 			case State.loadTerrain
 				loadTerrain()
+				
+			case State.loadSwp
+				loadSwp()
 				
 			case State.exportInstances
 				exportInstances()
@@ -434,9 +440,37 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		pNextIndex = last
 		
 		if last == count*/
+			pState = State.loadSwp
+		//end
+	end
+	
+	// Load swp.
+	private func void loadSwp()
+		if pSwpFile == null
+			if pSpzFile == null
+				pListener.log( "Load SWP..." )
+				var String filenameSwp = ( pInputDir + ( pMapName + "-130.swp" ) ).getPath()
+				if FileSystem.existsFile( filenameSwp )
+					pSwpFile = SwpFile.new( filenameSwp )
+					
+				else
+					pListener.log( "Decompress SPZ..." )
+					pSpzFile = SpzFile.new( ( pInputDir + ( pMapName + "-130.spz" ) ).getPath() )
+				end
+			end
+			
+			if pSpzFile != null and not pSpzFile.read()
+				var String filenameSwp = ( pInputDir + ( pMapName + "-130.swp" ) ).getPath()
+				if FileSystem.canWriteFile( filenameSwp )
+					FileWriter.new( filenameSwp ).writeData( pSpzFile.getData().getReader() )
+				end
+				pSwpFile = SwpFile.new( filenameSwp, pSpzFile.getData() )
+			end
+			
+		elif not pSwpFile.read()
 			pState = State.exportInstances
 			pNextIndex = -1
-		//end
+		end
 	end
 	
 	// Export instances

@@ -1,0 +1,130 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+
+pin Dragengine.Utils
+
+
+/**
+ * Spz file.
+ */
+class SpzFile
+	private var String pFilename
+	private var FileReader pReader
+	private var MemoryFile pData
+	private var FileWriter pDataWriter
+	private var int pDataSize
+	private var Array pControlCheck
+	private var int pBufferSize
+	private var int pMaxMatchLen
+	private var Array pBuffer
+	private var int pBufPos
+	private var int pBreakCount
+	
+	
+	public func new( String filename )
+		pFilename = filename
+		pReader = FileReader.new( filename )
+		pData = MemoryFile.new( filename.substring( -4 ) + ".swp" )
+		pDataWriter = pData.getWriter( true )
+		
+		pDataSize = pReader.readUInt()
+		
+		pControlCheck = Array.new()
+		pControlCheck.add( 0h01 )
+		pControlCheck.add( 0h02 )
+		pControlCheck.add( 0h04 )
+		pControlCheck.add( 0h08 )
+		pControlCheck.add( 0h10 )
+		pControlCheck.add( 0h20 )
+		pControlCheck.add( 0h40 )
+		pControlCheck.add( 0h80 )
+		
+		pBufferSize = 4096
+		pMaxMatchLen = 18
+		
+		pBuffer = Array.new( pBufferSize, 0 )
+		pBufPos = pBufferSize - pMaxMatchLen
+		
+		pBreakCount = 100
+	end
+	
+	
+	public func String getFilename()
+		return pFilename
+	end
+	
+	public func MemoryFile getData()
+		return pData
+	end
+	
+	
+	public func bool read()
+		var int i, control, value, c1, c2
+		var int breakCount = pBreakCount
+		
+		while not pReader.eof()
+			control = pReader.readByte()
+			
+			pControlCheck.forEach( block int cc
+				if ( control & cc ) == cc
+					if pReader.eof()
+						return null
+					end
+					
+					value = pReader.readByte()
+					pDataWriter.writeByte( value )
+					pBuffer.setAt( pBufPos, value )
+					pBufPos = ( pBufPos + 1 ) % pBufferSize
+				else
+					if pReader.eof()
+						return null
+					end
+					
+					c1 = pReader.readByte()
+					c2 = pReader.readByte()
+					c1 |= ( c2 & 0hf0 ) << 4
+					c2 = ( c2 & 0h0f) + 2
+					
+					for i = c1 to c1 + c2 + 1
+						value = pBuffer.getAt( i & ( pBufferSize - 1 ) ) cast int
+						pDataWriter.writeByte( value )
+						pBuffer.setAt( pBufPos, value )
+						pBufPos = ( pBufPos + 1 ) % pBufferSize
+					end
+				end
+			end )
+			
+			if breakCount-- == 0
+				return true
+			end
+		end
+		
+		if pData.getSize() != pDataSize
+			throw EInvalidParam.new( "size of uncompressed data does not match! (" \
+				+ pData.getSize() + " instead of " + pDataSize + ")" )
+		end
+		
+		return false
+	end
+end
