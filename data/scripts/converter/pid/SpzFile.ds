@@ -127,4 +127,12 @@ class SpzFile
 		
 		return false
 	end
+	
+	public func int getReadTargetSize()
+		return pDataSize
+	end
+	
+	public func int getReadCurrentSize()
+		return pData.getSize()
+	end
 end

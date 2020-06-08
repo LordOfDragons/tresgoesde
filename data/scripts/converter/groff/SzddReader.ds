@@ -76,6 +76,10 @@ class SzddReader
 		return pMemoryFile
 	end
 	
+	public func int getUnpackgedSize()
+		return pUnpackedSize
+	end
+	
 	
 	// Decompress next chunk. Returns true if more data needs to decompressed
 	// or false if the end of file has been reached.

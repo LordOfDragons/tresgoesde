@@ -42,6 +42,9 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		
 		// Converting failed with an exception.
 		func void failed( Exception exception )
+		
+		// Update progress bar.
+		func void updateProgressBar( int range, int progress )
 	end
 	
 	// Task state
@@ -239,6 +242,10 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		pNextIndex = -1
 	end
 	
+	public func void updateProgressBar( int range, int progress )
+		pListener.updateProgressBar( range, progress )
+	end
+	
 	// Merge groff mappings into geometry.
 	private func void mergeMappings()
 		if pNextIndex == -1
@@ -270,6 +277,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			end
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.propagateDiffuse
@@ -313,6 +321,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			end
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.propagateSubMaterial
@@ -365,6 +374,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			end
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.calcMaterialPids
@@ -400,6 +410,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			end
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.loadTerrain
@@ -438,6 +449,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count*/
 			pState = State.loadSwp
@@ -459,15 +471,23 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 				end
 			end
 			
-			if pSpzFile != null and not pSpzFile.read()
-				var String filenameSwp = ( pInputDir + ( pMapName + "-130.swp" ) ).getPath()
-				if FileSystem.canWriteFile( filenameSwp )
-					FileWriter.new( filenameSwp ).writeData( pSpzFile.getData().getReader() )
+			if pSpzFile != null
+				if pSpzFile.read()
+					pListener.updateProgressBar( pSpzFile.getReadTargetSize(), pSpzFile.getReadCurrentSize() )
+					
+				else
+					var String filenameSwp = ( pInputDir + ( pMapName + "-130.swp" ) ).getPath()
+					if FileSystem.canWriteFile( filenameSwp )
+						FileWriter.new( filenameSwp ).writeData( pSpzFile.getData().getReader() )
+					end
+					pSwpFile = SwpFile.new( filenameSwp, pSpzFile.getData() )
 				end
-				pSwpFile = SwpFile.new( filenameSwp, pSpzFile.getData() )
 			end
 			
-		elif not pSwpFile.read()
+		elif pSwpFile.read()
+			pListener.updateProgressBar( pSwpFile.readTargetSize(), pSwpFile.readCurrentSize() )
+			
+		else
 			pState = State.exportInstances
 			pNextIndex = -1
 		end
@@ -496,6 +516,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			end
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.exportWorld
@@ -521,6 +542,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			instance.export( pExporter, pExportWorld )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pExportWorld.finish( ( pExporter.getPathMapDir() + "map.deworld" ).getPath() )
@@ -548,6 +570,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			ExportModel.new( model ).export( pExporter )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.exportOcclusionMeshes
@@ -574,6 +597,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 			end )
 		end
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.exportSkins
@@ -593,13 +617,14 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		end
 		
 		var int count = pCollector.getCount()
-		var int last = DEMath.min( pNextIndex + 10, count )
+		var int last = DEMath.min( pNextIndex + 1, count )
 		if pNextIndex < count
 			pCollector.forEach( pNextIndex, last, block GroffModel model
-				ExportSkin.new( model ).export( pExporter )
+				ExportSkin.new( model ).export( pExporter, pSwpFile )
 			end )
 		end
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pListener.log( "Done" )

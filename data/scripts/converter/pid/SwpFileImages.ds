@@ -26,52 +26,30 @@ pin Dragengine.Gui
 
 
 /**
- * Pid file palette.
+ * Swp file  images.
  */
-class PidFilePalette
-	private var int pLength
-	private var int pCountColors
-	private var Array pColors
+class SwpFileImages
+	private var EditableImage pColor
+	private var EditableImage pOpacity
+	private var EditableImage pBumpMap
 	
 	
-	public func new()
-		pLength = 0
-		pCountColors = 0
-		pColors = Array.new()
+	public func new( EditableImage color, EditableImage opacity, EditableImage bumpMap )
+		pColor = color
+		pOpacity = opacity
+		pBumpMap = bumpMap
 	end
 	
 	
-	public func int getLength()
-		return pLength
+	public func EditableImage getColor()
+		return pColor
 	end
 	
-	public func void setLength( int length )
-		if length < 0
-			throw EInvalidParam.new()
-		end
-		pLength = length
+	public func EditableImage getOpacity()
+		return pOpacity
 	end
 	
-	public func int getCountColors()
-		return pCountColors
-	end
-	
-	public func void setCountColors( int count )
-		if count < 0
-			throw EInvalidParam.new()
-		end
-		pCountColors = count
-	end
-	
-	
-	public func void addColor( Color color )
-		if color == null
-			throw ENullPointer.new()
-		end
-		pColors.add( color )
-	end
-	
-	public func Color getColorAt( int index )
-		return pColors.getAt( index ) cast Color
+	public func EditableImage getBumpMap()
+		return pBumpMap
 	end
 end

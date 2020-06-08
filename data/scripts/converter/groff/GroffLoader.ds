@@ -41,6 +41,9 @@ class GroffLoader extends FrameUpdateListener
 		
 		// Print out log entry.
 		func void log( String message )
+		
+		// Update progress bar.
+		func void updateProgressBar( int range, int progress )
 	end
 	
 	// Task state
@@ -186,6 +189,7 @@ class GroffLoader extends FrameUpdateListener
 			name.setName( pReader.readString( length ) )
 			pGroff.addName( name )
 		end
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.dataEntries
@@ -231,6 +235,7 @@ class GroffLoader extends FrameUpdateListener
 			data.setHandle( pReader.readUInt() )
 			pGroff.addData( data )
 		end
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.valueTables
@@ -331,6 +336,7 @@ class GroffLoader extends FrameUpdateListener
 			end
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			// finish groups
@@ -496,6 +502,7 @@ class GroffLoader extends FrameUpdateListener
 			pGroff.addGeometry( geometry )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.materials
@@ -560,6 +567,7 @@ class GroffLoader extends FrameUpdateListener
 			pGroff.addMaterial( material )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.mappings
@@ -607,6 +615,7 @@ class GroffLoader extends FrameUpdateListener
 			pGroff.addMapping( mapping )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.models
@@ -637,6 +646,7 @@ class GroffLoader extends FrameUpdateListener
 			pGroff.addModel( model )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			pState = State.instances
@@ -673,6 +683,7 @@ class GroffLoader extends FrameUpdateListener
 			pGroff.setHandleValueTable( pReader.readUInt() )
 		end )
 		pNextIndex = last
+		pListener.updateProgressBar( count, last )
 		
 		if last == count
 			giveUp()
@@ -683,7 +694,11 @@ class GroffLoader extends FrameUpdateListener
 	
 	// Decompress file.
 	private func void decompress()
-		if not pDecompressor.decompress()
+		if pDecompressor.decompress()
+			pListener.updateProgressBar( pDecompressor.getUnpackgedSize(), \
+				pDecompressor.getMemoryFile().getSize() )
+			
+		else
 			pReader = pDecompressor.getMemoryFile().getReader()
 			pDecompressor = null
 			pState = State.header

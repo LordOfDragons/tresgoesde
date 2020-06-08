@@ -177,12 +177,10 @@ class ExportModel
 				writer.writeUShort( face.getNormalAt( 0 ) )
 				
 				// texture coordinate indices
-				writer.writeUShort( baseTexCoordIndex + j )
-				writer.writeUShort( baseTexCoordIndex + j - 1 )
-				writer.writeUShort( baseTexCoordIndex )
+				writer.writeUShort( baseTexCoordIndex++ )
+				writer.writeUShort( baseTexCoordIndex++ )
+				writer.writeUShort( baseTexCoordIndex++ )
 			end
-			
-			baseTexCoordIndex += ( vertexCount - 2 ) * 3
 		end
 	end
 	

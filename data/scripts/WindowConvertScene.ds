@@ -52,11 +52,13 @@ class WindowConvertScene extends WindowDialog implements ConverterTask.Listener
 	private var Button pButtonCancel
 	private var Button pButtonClose
 	private var ConverterTask pConverterTask
+	private var DefaultRangeModel pModelProgress
 	
 	
 	public func new( String baseFilename ) super( 10, 30, 600, 400 )
 		pBaseFilename = baseFilename
 		pModelLogs = DefaultListModel.new()
+		pModelProgress = DefaultRangeModel.new( 0, 100, 1, 0, 1 )
 		
 		runWhileBlockingLayout( block
 			setTitle( "Convert Scene" )
@@ -74,14 +76,20 @@ class WindowConvertScene extends WindowDialog implements ConverterTask.Listener
 			addWidget( ScrollPanel.new( ListBox.new( pModelLogs ), ScrollPanel.Policy.hidden, \
 				ScrollPanel.Policy.visible ), BorderLayout.Area.content )
 			
-			// buttons in bottom area
-			addWidget( Panel.new( GridLayout.new( 2, 1 ), block Panel p
-				pButtonClose = Button.new( "Close", CloseDialog.new( this ) )
-				pButtonClose.setEnabled( false )
-				p.addWidget( pButtonClose )
+			// progress bar and buttons in bottom area
+			addWidget( Panel.new( FlowLayout.new( LayoutAxis.y, 2, FlowLayout.Stretch.last ), block Panel p
+				var ProgressBar progressBar = ProgressBar.new( Orientation.horizontal, pModelProgress )
+				progressBar.setDesignerSelector( "ProgressBar.ConvertScene" )
+				p.addWidget( progressBar )
 				
-				pButtonCancel = Button.new( "Cancel", CancelTaskAction.new( this ) )
-				p.addWidget( pButtonCancel )
+				p.addWidget( Panel.new( GridLayout.new( 2, 1 ), block Panel p2
+					pButtonClose = Button.new( "Close", CloseDialog.new( this ) )
+					pButtonClose.setEnabled( false )
+					p2.addWidget( pButtonClose )
+					
+					pButtonCancel = Button.new( "Cancel", CancelTaskAction.new( this ) )
+					p2.addWidget( pButtonCancel )
+				end ) )
 			end ), BorderLayout.Area.bottom )
 			
 			// Set cancel button as default widget
@@ -134,5 +142,11 @@ class WindowConvertScene extends WindowDialog implements ConverterTask.Listener
 		pConverterTask = null
 		pButtonClose.setEnabled( true )
 		pButtonCancel.setEnabled( false )
+	end
+	
+	// Update progress bar.
+	public func void updateProgressBar( int range, int progress )
+		pModelProgress.setMaximum( range )
+		pModelProgress.setValue( progress )
 	end
 end

@@ -22,6 +22,7 @@
 namespace TresGoesDE.Converting
 
 
+pin Dragengine.Gui
 pin Dragengine.Utils
 
 
@@ -77,5 +78,154 @@ class SwpFile
 		
 		pDataWriter.writeData( pReader, size )
 		return true
+	end
+	
+	public func int readTargetSize()
+		return pReader.getLength()
+	end
+	
+	public func int readCurrentSize()
+		return pData.getSize()
+	end
+	
+	public func SwpFileImages loadImage( PidFileEntry pid )
+		var PidFilePalette palette = pid.getPalette()
+		if palette == null and pid.getBitCount() != PidFileEntry.BitDepth.rgb16
+			throw EInvalidParam.new( "no-palette without PidFileEntry.BitDepth.rgb16 is not possible" )
+		end
+		
+		var int height = pid.getHeight()
+		var int width = pid.getWidth()
+		var int pixelCount = width * height
+		var bool hasTransp = pid.getTransparency() != PidFileEntry.Transparency.none
+		
+		// retrieve the pixel data from the data block in the swp
+		var EditableImage imageColor, imageOpacity, imageBumpMap
+		var int strideSkip, x, y, value
+		var Color color
+		
+		pDataReader.setPosition( pid.getOffsetSWP() )
+		
+		select pid.getBitCount()
+		case PidFileEntry.BitDepth.indexed
+			strideSkip = pid.getStride() - width
+			
+		case PidFileEntry.BitDepth.rgb16
+			strideSkip = pid.getStride() - width * 2
+		end
+		
+		select pid.getType()
+		case PidFileEntry.Type.indexed
+			select pid.getBitCount()
+			case PidFileEntry.BitDepth.indexed
+				imageColor = EditableImage.new( width, height, 1, 3, 8 )
+				if hasTransp
+					imageOpacity = EditableImage.new( width, height, 1, 1, 8 )
+				end
+				for y = height - 1 downto 0
+					for x = 0 to width
+						value = pDataReader.readByte()
+						color = palette.getColorAt( value )
+						imageColor.setAt( x, y, palette.getColorAt( value ) )
+						if hasTransp
+							imageOpacity.setAt( x, y, value == 0 if Color.black else Color.white )
+						end
+					end
+					pDataReader.movePosition( strideSkip )
+				end
+				
+			case PidFileEntry.BitDepth.rgb16
+				imageColor = EditableImage.new( width, height, 1, 3, 8 )
+				for y = height - 1 downto 0
+					for x = 0 to width
+						color = readColor8()
+						imageColor.setAt( x, y, color )
+					end
+					pDataReader.movePosition( strideSkip )
+				end
+			end
+			
+		case PidFileEntry.Type.curvedBumpMap
+			select pid.getBitCount()
+			case PidFileEntry.BitDepth.indexed
+				throw EInvalidParam.new( "invalid combination of PidFileEntry.Type.curvedBumpMap and PidFileEntry.BitDepth.indexed" )
+				
+			case PidFileEntry.BitDepth.rgb16
+				strideSkip = pid.getStride() - width * 2
+				imageColor = EditableImage.new( width, height, 1, 3, 8 )
+				imageBumpMap = EditableImage.new( width, height, 1, 3, 8 )
+				if hasTransp
+					imageOpacity = EditableImage.new( width, height, 1, 1, 8 )
+				end
+				
+				var int vertangle, horzangle
+				for y = height - 1 downto 0
+					for x = 0 to width
+						value = pDataReader.readUShort()
+						vertangle = value & 0h0f
+						horzangle = ( value >> 4 ) & 0h3f
+						value = ( value >> 10 ) & 0h3f
+						imageColor.setAt( x, y, palette.getColorAt( value ) )
+						imageBumpMap.setAt( x, y, Color.new( 0.5, 0.5, 1 ) )
+						if hasTransp
+							imageOpacity.setAt( x, y, value == 0 if Color.black else Color.white )
+						end
+					end
+					pDataReader.movePosition( strideSkip )
+				end
+			end
+			
+		case PidFileEntry.Type.indexedBumpMap
+			select pid.getBitCount()
+			case PidFileEntry.BitDepth.indexed
+				throw EInvalidParam.new( "invalid combination of PidFileEntry.Type.indexedBumpMap and PidFileEntry.BitDepth.indexed" )
+				
+			case PidFileEntry.BitDepth.rgb16
+				strideSkip = pid.getStride() - width * 2
+				imageColor = EditableImage.new( width, height, 1, 3, 8 )
+				imageBumpMap = EditableImage.new( width, height, 1, 3, 8 )
+				if hasTransp
+					imageOpacity = EditableImage.new( width, height, 1, 1, 8 )
+				end
+				
+				var int vertangle, horzangle
+				for y = height - 1 downto 0
+					for x = 0 to width
+						value = pDataReader.readUShort()
+						vertangle = value & 0h0f
+						horzangle = ( value >> 4 ) & 0h3f
+						value = ( value >> 10 ) & 0h3f
+						imageColor.setAt( x, y, palette.getColorAt( value ) )
+						imageBumpMap.setAt( x, y, Color.new( 0.5, 0.5, 1 ) )
+						if hasTransp
+							imageOpacity.setAt( x, y, value == 0 if Color.black else Color.white )
+						end
+					end
+					pDataReader.movePosition( strideSkip )
+				end
+			end
+		end
+		
+		if imageColor != null
+			imageColor.contentChanged()
+		end
+		if imageOpacity != null
+			imageOpacity.contentChanged()
+		end
+		if imageBumpMap != null
+			imageBumpMap.contentChanged()
+		end
+		
+		return SwpFileImages.new( imageColor, imageOpacity, imageBumpMap )
+	end
+	
+	
+	// Read RGBA color in 8-bit integer format.
+	private func Color readColor8()
+		var float b = ( pDataReader.readByte() cast float ) / 255
+		var float g = ( pDataReader.readByte() cast float ) / 255
+		var float r = ( pDataReader.readByte() cast float ) / 255
+		var float a = ( pDataReader.readByte() cast float ) / 255
+		return Color.new( r, g, b, a )
 	end
 end

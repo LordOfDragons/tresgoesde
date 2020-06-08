@@ -22,8 +22,7 @@
 namespace TresGoesDE.Converting
 
 
-pin Dragengine.Preloading
-pin Dragengine.Scenery
+pin Dragengine.Gui
 pin Dragengine.XML
 
 
@@ -41,7 +40,7 @@ class ExportSkin
 	end
 	
 	
-	public func void export( Exporter exporter )
+	public func void export( Exporter exporter, SwpFile swpFile )
 		var EasyXML xmlSkin = EasyXML.new()
 		
 		var EasyXMLElement tagSkin = EasyXMLElement.new( EasyXMLElementType.tag )
@@ -49,8 +48,9 @@ class ExportSkin
 		xmlSkin.setRootElement( tagSkin )
 		
 		var int i, materialCount = pMaterial.getMaterialCount()
+		
 		for i = 0 to materialCount
-			writeTexture( exporter, i, tagSkin )
+			writeTexture( exporter, swpFile, i, tagSkin )
 		end
 		
 		var String filename = pModel.getName().getName() + ".deskin"
@@ -58,14 +58,106 @@ class ExportSkin
 	end
 	
 	
-	private func void writeTexture( Exporter exporter, int index, EasyXMLElement tagSkin )
+	private func void writeTexture( Exporter exporter, SwpFile swpFile, int index, EasyXMLElement tagSkin )
+		var PidFileEntry pid = pMaterial.getPidAt( index )
+		if pid == null or pid.getOcclusion()
+			return 
+		end
+		
+		// find images
+		var GroffImage colorMap = pMaterial.getColorMapAt( index )
+		if colorMap != null and colorMap.getName().getName().empty()
+			colorMap = null
+		end
+		
+		var GroffImage opacityMap = pMaterial.getOpacityMapAt( index )
+		if opacityMap != null and opacityMap.getName().getName().empty()
+			opacityMap = null
+		end
+		
+		var GroffImage bumpMap = pMaterial.getBumpMapAt( index )
+		if bumpMap != null and bumpMap.getName().getName().empty()
+			bumpMap = null
+		end
+		
+		// write texture tag
 		var EasyXMLElement tagTexture = tagSkin.addTag( "texture" )
 		tagTexture.setAttribute( "name", "mat" + ( index < 9 if "0" else "" ) + ( index + 1 ) )
 		
-		var EasyXMLElement tagProperty = tagTexture.addTag( "color" )
-		tagProperty.setAttribute( "property", "color" )
-		tagProperty.setAttribute( "r", 0.65 )
-		tagProperty.setAttribute( "g", 0.65 )
-		tagProperty.setAttribute( "b", 0.65 )
+		// write properties
+		var EasyXMLElement tagProperty
+		
+		if colorMap == null 
+			tagProperty = tagTexture.addTag( "color" )
+			tagProperty.setAttribute( "property", "color" )
+			tagProperty.setAttribute( "r", pid.getDefaultColor().getRed() )
+			tagProperty.setAttribute( "g", pid.getDefaultColor().getGreen() )
+			tagProperty.setAttribute( "b", pid.getDefaultColor().getBlue() )
+			return
+		end
+		
+		var PidFilePalette palette = pid.getPalette()
+		if palette == null and pid.getBitCount() != PidFileEntry.BitDepth.rgb16
+			throw EInvalidParam.new( "no palette without PidFileEntry.BitCount.rgb16 not possible" )
+		end
+		
+		var int pixelCount = pid.getWidth() * pid.getHeight()
+		var bool hasTransp = pid.getTransparency() != PidFileEntry.Transparency.none
+		
+		tagTexture.addComment( "pid.defaultColor: " + pid.getDefaultColor().getRed() \
+			+ " " + pid.getDefaultColor().getGreen() + " " + pid.getDefaultColor().getBlue() )
+		tagTexture.addComment( "pid.bitCount: " + pid.getBitCount() )
+		tagTexture.addComment( "pid.transparency: " + pid.getTransparency() )
+		tagTexture.addComment( "pid.type: " + pid.getType() )
+		tagTexture.addComment( "pid.palette: " + ( pid.getPalette() != null if "yes" else "no" ) )
+		
+		// retrieve the pixel data from the data block in the swp
+		var SwpFileImages images = swpFile.loadImage( pid )
+		var EditableImage imageColor = images.getColor()
+		var EditableImage imageOpacity = images.getOpacity()
+		var EditableImage imageBumpMap = images.getBumpMap()
+		var String filename
+		var File path
+		
+		// write images
+		if imageColor != null
+			filename = colorMap.getName().getName().split( '\\' ).getAt( -1 ) cast String
+			filename = filename.substring( 0, -4 ) + ".png"
+			path = exporter.getPathSkinImageDir() + filename
+			imageColor.getImage().saveToFile( path.getPath() )
+			
+			tagProperty = tagTexture.addDataTag( "image", "image/" + filename )
+			tagProperty.setAttribute( "property", "color" )
+			
+		else
+			tagProperty = tagTexture.addTag( "color" )
+			tagProperty.setAttribute( "property", "color" )
+			tagProperty.setAttribute( "r", pid.getDefaultColor().getRed() )
+			tagProperty.setAttribute( "g", pid.getDefaultColor().getGreen() )
+			tagProperty.setAttribute( "b", pid.getDefaultColor().getBlue() )
+		end
+		
+		if opacityMap != null and imageOpacity != null
+			filename = opacityMap.getName().getName().split( '\\' ).getAt( -1 ) cast String
+			filename = filename.substring( 0, -4 ) + ".png"
+			path = exporter.getPathSkinImageDir() + filename
+			imageOpacity.getImage().saveToFile( path.getPath() )
+			
+			tagProperty = tagTexture.addDataTag( "image", "image/" + filename )
+			tagProperty.setAttribute( "property", "solidity" )
+			
+			tagProperty = tagTexture.addDataTag( "value", 0 )
+			tagProperty.setAttribute( "property", "solidity.masked" )
+		end
+		
+		if bumpMap != null and imageBumpMap != null
+			filename = bumpMap.getName().getName().split( '\\' ).getAt( -1 ) cast String
+			filename = filename.substring( 0, -4 ) + ".png"
+			path = exporter.getPathSkinImageDir() + filename
+			imageBumpMap.getImage().saveToFile( path.getPath() )
+			
+			tagProperty = tagTexture.addDataTag( "image", "image/" + filename )
+			tagProperty.setAttribute( "property", "normal" )
+		end
 	end
 end
