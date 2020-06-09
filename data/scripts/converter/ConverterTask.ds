@@ -31,7 +31,8 @@ pin Dragengine.Utils
  * Task converter from Trespasser to Drag[en]gine. Supports stepping since converting
  * takes some time. Updates progress using a listener.
  */
-class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener, PidFileLoader.Listener
+class ConverterTask extends FrameUpdateListener \
+implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 	// Listener used to shows progress update.
 	interface Listener
 		// Print out log entry.
@@ -80,6 +81,8 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 	private var PidFile pPidFile
 	private var SpzFile pSpzFile
 	private var SwpFile pSwpFile
+	private var TerrainLoader pTerrainLoader
+	private var Terrain pTerrain
 	
 	private var int pNextIndex
 	private var Array pCollector
@@ -178,7 +181,7 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		if FileSystem.existsFile( pOutputDir.getPath() )
 			deleteDirectory( pOutputDir.getPath() )
 		end
-		pState = State.loadPidFile
+		pState = State.loadTerrain //State.loadPidFile
 	end
 	
 	private func void deleteDirectory( String directory )
@@ -419,41 +422,19 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 	
 	// Load terrain
 	private func void loadTerrain()
-		/*
-		if pNextIndex == -1
-			pListener.log( "Matching groff materials to pid file entries..." )
-			pCollector = Array.new()
-			pGroff.forEachMaterial( block GroffMaterial each
-				pCollector.add( each )
-			end )
-			pNextIndex = 0
+		if pTerrainLoader != null
+			return
 		end
 		
-		var int count = pCollector.getCount()
-		var int last = DEMath.min( pNextIndex + 10, count )
-		pCollector.forEach( pNextIndex, last, block GroffMapping material
-			var int i, count = material.getMaterialCount()
-			for i = 0 to count
-				if not material.getColorMapAt( i ).getName().getName().empty()
-					var PidFileEntry entry = pPidFile.getPidById( material.getPidAt( i ) )
-					in self.pidsByID:
-						pid = self.pidsByID[material.pids[i]]
-						pid.groffMaterial = material
-						material.linkPIDs[i] = pid
-						mappedCount = mappedCount + 1
-					else:
-						failedCount = failedCount + 1
-						print('- pid {:X} failed for material {}({}): color=\'{}\' bump=\'{}\''.format(
-							material.pids[i], material.id, i, material.colorMaps[i].name,
-							material.bumpMaps[i].name))
-			
-		end )
-		pNextIndex = last
-		pListener.updateProgressBar( count, last )
+		pListener.log( "Load WDT " + pMapName + ".wtd ..." )
+		pTerrainLoader = TerrainLoader.new( ( pInputDir + ( pMapName + ".wtd" ) ).getPath(), this )
+	end
+	
+	public func void finished( Terrain terrain )
+		pTerrain = terrain
+		pTerrainLoader = null
 		
-		if last == count*/
-			pState = State.loadSwp
-		//end
+		pState = State.loadSwp
 	end
 	
 	// Load swp.
@@ -654,6 +635,14 @@ class ConverterTask extends FrameUpdateListener implements GroffLoader.Listener,
 		giveUp()
 		pListener = null
 		pState = State.done
+		if pTerrainLoader != null
+			pTerrainLoader.dispose()
+			pTerrainLoader = null
+		end
+		if pTerrain != null
+			pTerrain.dispose()
+			pTerrain = null
+		end
 		if pGroffLoader != null
 			pGroffLoader.cancel()
 			pGroffLoader = null

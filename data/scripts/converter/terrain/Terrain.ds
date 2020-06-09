@@ -1,0 +1,246 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+
+pin Dragengine.Gui
+pin Dragengine.Scenery
+
+
+/**
+ * Terrain file.
+ */
+class Terrain
+	private var String pFilename
+	
+	private var int pTotalNodeCount
+	private var int pTotalVertexCount
+	private var int pRootCoeff
+	
+	// maximum number of nodes along axis in highest detail level
+	private var Point pCoordStart
+	private var Point pCoordSize
+	private var Point pCoordEnd
+	private var Point pOppositeEdge
+	
+	// terrain position and size in world space
+	private var Vector2 pTerPos
+	private var Vector2 pTerSize
+	
+	// transform parameters
+	private var Vector2 pW2tScale
+	private var Vector2 pW2tOffset
+	private var Vector2 pT2wScale
+	private var Vector2 pT2wOffset
+	private var float pHeightScale
+	private var float pHeightScaleInv
+	private var float pHeightQFactor
+	
+	// zero tree
+	private var TerrainTreeNode pTree
+	private var Dictionary pDictTreeVertices
+	
+	
+	public func new( String filename )
+		pFilename = filename
+		
+		pCoordStart = Point.new()
+		pCoordSize = Point.new()
+		pCoordEnd = Point.new()
+		pOppositeEdge = Point.new()
+		
+		pTerPos = Vector2.new()
+		pTerSize = Vector2.new()
+		
+		pW2tScale = Vector2.new( 1, 1 )
+		pW2tOffset = Vector2.new( 0, 0 )
+		pT2wScale = Vector2.new( 1, 1 )
+		pT2wOffset = Vector2.new( 0, 0 )
+		pHeightScale = 1
+		pHeightScaleInv = 1
+		pHeightQFactor = 1
+		
+		pDictTreeVertices = Dictionary.new()
+	end
+	
+	public func void dispose()
+		if pTree != null
+			pTree.dispose()
+			pTree = null
+		end
+		pDictTreeVertices.removeAll()
+	end
+	
+	
+	public func String getFilename()
+		return pFilename
+	end
+	
+	
+	public func int getTotalNodeCount()
+		return pTotalNodeCount
+	end
+	
+	public func void setTotalNodeCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pTotalNodeCount = count
+	end
+	
+	public func int getTotalVertexCount()
+		return pTotalVertexCount
+	end
+	
+	public func void setTotalVertexCount( int count )
+		if count < 0
+			throw EInvalidParam.new()
+		end
+		pTotalVertexCount = count
+	end
+	
+	public func int getRootCoeff()
+		return pRootCoeff
+	end
+	
+	public func void setRootCoeff( int coeff )
+		pRootCoeff = coeff
+	end
+	
+	
+	public func Point getCoordStart()
+		return pCoordStart
+	end
+	
+	public func void setCoord( Point coord, Point size )
+		pCoordStart = coord
+		pCoordSize = size
+		pCoordEnd = coord + size
+	end
+	
+	public func Point getCoordSize()
+		return pCoordSize
+	end
+	
+	public func Point getCoordEnd()
+		return pCoordEnd
+	end
+	
+	public func Point getOppositeEdge()
+		return pOppositeEdge
+	end
+	
+	public func void setOppositeEdge( Point edge )
+		pOppositeEdge = edge
+	end
+	
+	
+	public func Vector2 getTerPos()
+		return pTerPos
+	end
+	
+	public func void setTerPos( Vector2 position )
+		pTerPos = position
+	end
+	
+	public func Vector2 getTerSize()
+		return pTerSize
+	end
+	
+	public func void setTerSize( Vector2 size )
+		pTerSize = size
+	end
+	
+	
+	public func Vector2 getW2tScale()
+		return pW2tScale
+	end
+	
+	public func void setW2tScale( Vector2 scale )
+		pW2tScale = scale
+	end
+	
+	public func Vector2 getW2tOffset()
+		return pW2tOffset
+	end
+	
+	public func void setW2tOffset( Vector2 offset )
+		pW2tOffset = offset
+	end
+	
+	public func Vector2 getT2wScale()
+		return pT2wScale
+	end
+	
+	public func void setT2wScale( Vector2 scale )
+		pT2wScale = scale
+	end
+	
+	public func Vector2 getT2wOffset()
+		return pT2wOffset
+	end
+	
+	public func void setT2wOffset( Vector2 offset )
+		pT2wOffset = offset
+	end
+	
+	public func float getHeightScale()
+		return pHeightScale
+	end
+	
+	public func void setHeightScale( float scale )
+		pHeightScale = scale
+	end
+	
+	public func float getHeightScaleInv()
+		return pHeightScaleInv
+	end
+	
+	public func void setHeightScaleInv( float scale )
+		pHeightScaleInv = scale
+	end
+	
+	public func float getHeightQFactor()
+		return pHeightQFactor
+	end
+	
+	public func void setHeightQFactor( float qfactor )
+		pHeightQFactor = qfactor
+	end
+	
+	
+	public func TerrainTreeNode getTree()
+		return pTree
+	end
+	
+	public func void setTree( TerrainTreeNode tree )
+		pTree = tree
+	end
+	
+	public func TerrainTreeVertex treeVertexAt( Point coord )
+		return pDictTreeVertices.getAt( coord ) cast TerrainTreeVertex
+	end
+	
+	public func void treeVertexAdd( TerrainTreeVertex vertex )
+		pDictTreeVertices.setAt( vertex.getCoord(), vertex )
+	end
+end

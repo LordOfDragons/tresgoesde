@@ -1,0 +1,86 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Bit reader. The original implementation is complicated:
+ * - read data stream in chunks of 4 bytes
+ * - in each chunk read bytes from right to left
+ * - in each byte read bits from left to right
+ * - pad last chunk with '0' bytes up to 4 bytes
+ * - final bits are assembled by shifting in from the right
+ */
+class BitReader
+	private var FileReader pReader
+	private var int pPosition
+	private var int pLength
+	private var int pEofPosition
+	
+	
+	public func new( String filename )
+		pReader = FileReader.new( filename )
+		pLength = pReader.getLength()
+		pPosition = 0
+		pEofPosition = pLength + ( 4 - ( pLength % 4 ) ) % 4
+	end
+	
+	public func bool eof()
+		return pPosition >= pEofPosition
+	end
+	
+	public func int read( int bitcount )
+		var int byteOffset, bitOffset, value, readyBits, collectBits
+		var int result = 0
+		
+		while bitcount > 0
+			byteOffset = ( pPosition / 32 ) * 4 + 3 - ( pPosition % 32 ) / 8
+			bitOffset = pPosition % 8
+			readyBits = 8 - bitOffset
+			
+			if byteOffset < pLength
+				pReader.setPosition( byteOffset )
+				value = pReader.readByte()
+				
+			else
+				value = 0 // padding
+			end
+			
+			collectBits = DEMath.min( readyBits, bitcount )
+			result <<= collectBits
+			result |= ( value >> ( readyBits - collectBits ) ) & ( 0hff >> ( 8 - collectBits ) )
+			bitcount -= collectBits
+			pPosition += collectBits
+		end
+		
+		return result
+	end
+	
+	public func void setPosition( int position )
+		pPosition = position
+	end
+end

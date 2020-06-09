@@ -1,0 +1,91 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+
+pin Dragengine.Gui
+pin Dragengine.Scenery
+
+
+/**
+ * Terrain tree vertex.
+ */
+class TerrainTreeVertex
+	private var Point pCoord
+	private var int pScaling
+	private var int pWavelet
+	private var Array pNodes
+	
+	
+	public func new( Point coord )
+		pCoord = coord
+		pScaling = 0
+		pWavelet = 0
+		pNodes = Array.new()
+	end
+	
+	
+	public func Point getCoord()
+		return pCoord
+	end
+	
+	public func int getScaling()
+		return -tresLift( pScaling )
+	end
+	
+	public func void setScaling( int value )
+		pScaling = -tresUnlift( value )
+	end
+	
+	
+	public func TerrainTreeVertex split( TerrainTreeVertex v1, TerrainTreeVertex v2 )
+		var TerrainTreeVertex vs = TerrainTreeVertex.new( ( v1.pCoord + v2.pCoord ) / 2 )
+		vs.setScaling( ( v1.getScaling() + v2.getScaling() ) / 2 )
+		return vs
+	end
+	
+	public func void copyScaling( TerrainTreeVertex vertex )
+		setScaling( vertex.getScaling() )
+	end
+	
+	public func void updateScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
+		addScaling( -tresUnlift( ( ( v1.getScaling() + v2.getScaling() ) / 2 ) + pWavelet ) - pScaling )
+	end
+	
+	public func void addScaling( int value )
+		pScaling += value
+	end
+	
+	
+	public func void addNode( TerrainTreeNode node )
+		pNodes.add( node )
+	end
+	
+	
+	static private func int tresLift( int value )
+		return ( value + 4 ) >> 3
+	end
+	
+	static private func int tresUnlift( int value )
+		return value << 3
+	end
+end
