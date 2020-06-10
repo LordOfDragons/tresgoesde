@@ -50,6 +50,8 @@ class TerrainLoader extends FrameUpdateListener
 	private enum State
 		readHeader //<! Open file
 		readNode //<! Read node
+		subdivide //<! Subdivide
+		recalcCoeff //<! Recalc coeff
 		done //<! Reading finished
 	end
 	
@@ -59,7 +61,7 @@ class TerrainLoader extends FrameUpdateListener
 		public var int index
 		public func new( TerrainTreeNode node )
 			this.node = node
-			index = 0
+			index = -1
 		end
 		public func String toString()
 			return "StepNode(" + hashCode() + " " + index + " " + node.getCoordStart() + " " + node.getCoordEnd() + ")"
@@ -108,6 +110,12 @@ class TerrainLoader extends FrameUpdateListener
 			case State.readNode
 				readNode()
 				
+			case State.subdivide
+				subdivide()
+				
+			case State.recalcCoeff
+				recalcCoeff()
+				
 			case State.done
 				giveUp()
 			end
@@ -154,10 +162,10 @@ class TerrainLoader extends FrameUpdateListener
 		var TerrainTreeNode tree = TerrainTreeNode.new( pTerrain, coordStart, coordEnd, false )
 		pTerrain.setTree( tree )
 		
-		tree.addVertex( TerrainTreeVertex.new( coordStart ) )
-		tree.addVertex( TerrainTreeVertex.new( Point.new( coordEnd.getX(), coordStart.getY() ) ) )
-		tree.addVertex( TerrainTreeVertex.new( coordEnd ) )
-		tree.addVertex( TerrainTreeVertex.new( Point.new( coordStart.getX(), coordEnd.getY() ) ) )
+		tree.addVertex( TerrainTreeVertex.new( coordStart, 0 ) )
+		tree.addVertex( TerrainTreeVertex.new( Point.new( coordEnd.getX(), coordStart.getY() ), 0 ) )
+		tree.addVertex( TerrainTreeVertex.new( coordEnd, 0 ) )
+		tree.addVertex( TerrainTreeVertex.new( Point.new( coordStart.getX(), coordEnd.getY() ), 0 ) )
 		
 		tree.forEachVertex( block TerrainTreeVertex each
 			pTerrain.treeVertexAdd( each )
@@ -300,68 +308,84 @@ class TerrainLoader extends FrameUpdateListener
 	
 	// Read ZeroTree.
 	private func void readNode()
-		pListener.updateProgressBar( pTerrain.getTotalNodeCount(), pProcessedNodeCount++ )
+		var int i
+		for i = 0 to 50
+			readSingleNode()
+			if pState != State.readNode
+				break
+			end
+		end
+	end
+	
+	// Read ZeroTree.
+	private func void readSingleNode()
 		if pNodeStack.getCount() == 0
-			finishZeroTree()
+			pState = State.subdivide
 			return
 		end
 		
 		//GameApp.getApp().getConsole().addMessage("stack " + pNodeStack)
 		var StepNode stepNode = pNodeStack.getAt( -1 ) cast StepNode
 		
-		if pBitReader.read( 1 ) == 0
-			//GameApp.getApp().getConsole().addMessage("empty")
-			nextChild()
-			readNode()
-			return
+		if stepNode.index == -1
+			pListener.updateProgressBar( pTerrain.getTotalNodeCount(), pProcessedNodeCount++ )
+			if pBitReader.read( 1 ) == 0
+				//GameApp.getApp().getConsole().addMessage("empty")
+				stepNode.node.dropChildren()
+				pNodeStack.removeFrom( pNodeStack.getCount() - 1 )
+				nextChild()
+				readSingleNode()
+				return
+			end
+			
+			var int dataBitCount = 30 // initial value
+			var int maxRegionBits = 30
+			
+			var TerrainTreeNode parent = stepNode.node.getParent()
+			if parent != null
+				dataBitCount = parent.getDataBitCount()
+				maxRegionBits = tresULog2( parent.getMaxCoeff() ) + 1
+			end
+			
+			if dataBitCount == 0
+				throw EInvalidParam.new( "dataBitCount in parent is 0" )
+			end
+			
+			stepNode.node.setDataBitCount( tresULog2( pBitReader.read( dataBitCount ) ) + 1 )
+			
+			stepNode.node.setMaxCoeff( pBitReader.read( maxRegionBits ) )
+			// GameApp.getApp().getConsole().addMessage( "p) maxCoeff=" + stepNode.node.getMaxCoeff() )
+			
+			var int coeffBitCount = tresULog2( stepNode.node.getMaxCoeff() ) + 2
+			var int v1 = pBitReader.read( coeffBitCount )
+			var int v2 = pBitReader.read( coeffBitCount )
+			var int v3 = pBitReader.read( coeffBitCount )
+			
+			if not ( tresULog2( v1 ) <= tresULog2( stepNode.node.getMaxCoeff() ) + 1 )
+				throw EInvalidParam.new( "assertion failed for coeff 1" )
+			end
+			if not ( tresULog2( v2 ) <= tresULog2( stepNode.node.getMaxCoeff() ) + 1 )
+				throw EInvalidParam.new( "assertion failed for coeff 2" )
+			end
+			if not ( tresULog2( v3 ) <= tresULog2( stepNode.node.getMaxCoeff() ) + 1 )
+				throw EInvalidParam.new( "assertion failed for coeff 3" )
+			end
+			
+			stepNode.node.setCoeffAt( 0, convCoeffVal( v1 ) )
+			stepNode.node.setCoeffAt( 1, convCoeffVal( v2 ) )
+			stepNode.node.setCoeffAt( 2, convCoeffVal( v3 ) )
+			/*
+			GameApp.getApp().getConsole().addMessage( "coeff=" + Array.newWith( stepNode.node.getCoeffAt( 0 ), \
+				stepNode.node.getCoeffAt( 1 ), stepNode.node.getCoeffAt( 2 ) ) )
+			*/
+			/*
+			GameApp.getApp().getConsole().addMessage( String.new(' ', stepNode.node.getLevel()*2) \
+				+ "- dataBitCount=" + stepNode.node.getDataBitCount() + " maxCoeff=" \
+				+ stepNode.node.getMaxCoeff() + " coeff=" + Array.newWith(\
+					stepNode.node.getCoeffAt(0), stepNode.node.getCoeffAt(1), stepNode.node.getCoeffAt(2)))
+			*/
+			stepNode.index = 0
 		end
-		
-		var int dataBitCount = 30 // initial value
-		var int maxRegionBits = 30
-		
-		var TerrainTreeNode parent = stepNode.node.getParent()
-		if parent != null
-			dataBitCount = parent.getDataBitCount()
-			maxRegionBits = tresULog2( parent.getMaxCoeff() ) + 1
-		end
-		
-		if dataBitCount == 0
-			throw EInvalidParam.new( "dataBitCount in parent is 0" )
-		end
-		
-		stepNode.node.setDataBitCount( tresULog2( pBitReader.read( dataBitCount ) ) + 1 )
-		
-		stepNode.node.setMaxCoeff( pBitReader.read( maxRegionBits ) )
-		// GameApp.getApp().getConsole().addMessage( "p) maxCoeff=" + stepNode.node.getMaxCoeff() )
-		
-		var int coeffBitCount = tresULog2( stepNode.node.getMaxCoeff() ) + 2
-		var int v1 = pBitReader.read( coeffBitCount )
-		var int v2 = pBitReader.read( coeffBitCount )
-		var int v3 = pBitReader.read( coeffBitCount )
-		
-		if not ( tresULog2( v1 ) <= tresULog2( stepNode.node.getMaxCoeff() ) + 1 )
-			throw EInvalidParam.new( "assertion failed for coeff 1" )
-		end
-		if not ( tresULog2( v2 ) <= tresULog2( stepNode.node.getMaxCoeff() ) + 1 )
-			throw EInvalidParam.new( "assertion failed for coeff 2" )
-		end
-		if not ( tresULog2( v3 ) <= tresULog2( stepNode.node.getMaxCoeff() ) + 1 )
-			throw EInvalidParam.new( "assertion failed for coeff 3" )
-		end
-		
-		stepNode.node.setCoeffAt( 0, convCoeffVal( v1 ) )
-		stepNode.node.setCoeffAt( 1, convCoeffVal( v2 ) )
-		stepNode.node.setCoeffAt( 2, convCoeffVal( v3 ) )
-		/*
-		GameApp.getApp().getConsole().addMessage( "coeff=" + Array.newWith( stepNode.node.getCoeffAt( 0 ), \
-			stepNode.node.getCoeffAt( 1 ), stepNode.node.getCoeffAt( 2 ) ) )
-		*/
-		/*
-		GameApp.getApp().getConsole().addMessage( String.new(' ', stepNode.node.getLevel()*2) \
-			+ "- dataBitCount=" + stepNode.node.getDataBitCount() + " maxCoeff=" \
-			+ stepNode.node.getMaxCoeff() + " coeff=" + Array.newWith(\
-				stepNode.node.getCoeffAt(0), stepNode.node.getCoeffAt(1), stepNode.node.getCoeffAt(2)))
-		*/
 		
 		var RectArea boundary = stepNode.node.getBoundary()
 		var int nx1 = ( boundary.getX2() + boundary.getX1() ) / 2
@@ -388,7 +412,7 @@ class TerrainLoader extends FrameUpdateListener
 		
 		child.setParent( stepNode.node )
 		child.setLevel( stepNode.node.getLevel() + 1 )
-		stepNode.node.setChildAt( stepNode.index, child )
+		stepNode.node.addChild( child )
 		pNodeStack.add( StepNode.new( child ) )
 	end
 	
@@ -440,30 +464,21 @@ class TerrainLoader extends FrameUpdateListener
 		end
 	end
 	
-	// Finish ZeroTree.
-	private func void finishZeroTree()
-		/*
-		def deepCut(node, cutCounter):
-			if cutCounter > 0:
-				if node.children:
-					for child in node.children:
-						deepCut(child, cutCounter - 1)
-			else:
-				node.children = None
-		#deepCut(self.tree, 1)
+	// Subdivide
+	private func void subdivide()
+		pListener.log( "Subdivide..." )
+		pListener.updateProgressBar( 1, 1 )
 		
-		# subdivide and recalc to get the final values
-		if True:
-			self.tree.subdivide(self, False)
-			self.tree.recalcDscScalingCoef()
-			
-		else:
-			maxLevel = self.tree.maxLevel()
-			for l in range(maxLevel + 1):
-				self.tree.subdivideLevel(self, l)
-				self.tree.updateCornersAfterSubdivide(l)
-			self.tree.recalcDscScalingCoef()
-		*/
+		pTerrain.subdivide()
+		pState = State.recalcCoeff
+	end
+	
+	// Recalculate coefficients
+	public func void recalcCoeff()
+		pListener.log( "Recalculate coefficients..." )
+		pListener.updateProgressBar( 1, 1 )
+		
+		pTerrain.recalcDscScalingCoef()
 		
 		giveUp()
 		pState = State.done

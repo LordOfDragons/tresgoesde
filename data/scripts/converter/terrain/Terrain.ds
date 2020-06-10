@@ -30,6 +30,11 @@ pin Dragengine.Scenery
  * Terrain file.
  */
 class Terrain
+	interface TriangleVisitor
+		func void visitTriangle( Vector v1, Vector v2, Vector v3 )
+	end
+	
+	
 	private var String pFilename
 	
 	private var int pTotalNodeCount
@@ -236,11 +241,24 @@ class Terrain
 		pTree = tree
 	end
 	
-	public func TerrainTreeVertex treeVertexAt( Point coord )
-		return pDictTreeVertices.getAt( coord ) cast TerrainTreeVertex
+	public func TerrainTreeVertex getTreeVertexAt( Point coord )
+		return pDictTreeVertices.getAt( coord, null ) cast TerrainTreeVertex
 	end
 	
 	public func void treeVertexAdd( TerrainTreeVertex vertex )
 		pDictTreeVertices.setAt( vertex.getCoord(), vertex )
+	end
+	
+	
+	public func void visitTriangles( TriangleVisitor visitor )
+		pTree.visitTriangles( visitor )
+	end
+	
+	public func void subdivide()
+		pTree.subdivide( this )
+	end
+	
+	public func void recalcDscScalingCoef()
+		pTree.recalcDscScalingCoef( true )
 	end
 end

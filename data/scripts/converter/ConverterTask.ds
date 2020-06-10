@@ -58,6 +58,8 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 		propagateSubMaterial //<! Propagate 'SubMaterialXX' properties in instances to materials
 		calcMaterialPids //<! Calculate material PIDs
 		loadTerrain //<! Load terrain
+		createTerrainMesh //<! Create terrain mesh
+		rasterTerrainHeightMap //<! Raster terrain height map
 		loadSwp //<! Load swp
 		exportInstances //<! Export instances
 		exportWorld //<! Write world
@@ -82,6 +84,7 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 	private var SpzFile pSpzFile
 	private var SwpFile pSwpFile
 	private var TerrainLoader pTerrainLoader
+	private var TerrainMeshCreator pTerrainMeshCreator
 	private var Terrain pTerrain
 	
 	private var int pNextIndex
@@ -135,6 +138,12 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 				
 			case State.loadTerrain
 				loadTerrain()
+				
+			case State.createTerrainMesh
+				createTerrainMesh()
+				
+			case State.rasterTerrainHeightMap
+				rasterTerrainHeightMap()
 				
 			case State.loadSwp
 				loadSwp()
@@ -434,7 +443,28 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 		pTerrain = terrain
 		pTerrainLoader = null
 		
-		pState = State.loadSwp
+		pState = State.createTerrainMesh
+	end
+	
+	// Create terrain mesh.
+	private func void createTerrainMesh()
+		pListener.log( "Create Terrain Mesh ..." )
+		pTerrainMeshCreator = TerrainMeshCreator.new( pTerrain )
+		pTerrainMeshCreator.createMesh()
+		
+		pListener.log( "Raster Terrain Height Map..." )
+		pState = State.rasterTerrainHeightMap
+	end
+	
+	// Raster terrain height map.
+	private func void rasterTerrainHeightMap()
+		if pTerrainMeshCreator.rasterHeightMap()
+			pListener.updateProgressBar( pTerrainMeshCreator.getProgressTarget(), pTerrainMeshCreator.getProgress() )
+			
+		else
+			pTerrainMeshCreator.getHeightMap().getImage().saveToFile("/converter/test.png")
+			pState = State.loadSwp
+		end
 	end
 	
 	// Load swp.
@@ -623,6 +653,10 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 	
 	// Failed
 	public func void failed( Exception exception )
+		if pListener == null
+			return
+		end
+		
 		pListener.failed( exception )
 		cleanUp()
 		if FileSystem.existsFile( pOutputDir.getPath() )
@@ -633,6 +667,7 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 	// Clean up
 	private func void cleanUp()
 		giveUp()
+		pListener.updateProgressBar( 1, 0 )
 		pListener = null
 		pState = State.done
 		if pTerrainLoader != null

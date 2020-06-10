@@ -31,21 +31,32 @@ pin Dragengine.Scenery
  */
 class TerrainTreeVertex
 	private var Point pCoord
+	private var int pRootLevel
 	private var int pScaling
 	private var int pWavelet
 	private var Array pNodes
 	
 	
-	public func new( Point coord )
+	public func new( Point coord, int rootLevel )
 		pCoord = coord
+		pRootLevel = rootLevel
 		pScaling = 0
 		pWavelet = 0
 		pNodes = Array.new()
 	end
 	
+	public func new( TerrainTreeVertex v1, TerrainTreeVertex v2 ) \
+	this( ( v1.pCoord + v2.pCoord ) / 2, DEMath.max( v1.pRootLevel, v2.pRootLevel ) + 1 )
+		setScaling( ( v1.getScaling() + v2.getScaling() ) / 2 )
+	end
+	
 	
 	public func Point getCoord()
 		return pCoord
+	end
+	
+	public func int getRootLevel()
+		return pRootLevel
 	end
 	
 	public func int getScaling()
@@ -56,18 +67,20 @@ class TerrainTreeVertex
 		pScaling = -tresUnlift( value )
 	end
 	
-	
-	public func TerrainTreeVertex split( TerrainTreeVertex v1, TerrainTreeVertex v2 )
-		var TerrainTreeVertex vs = TerrainTreeVertex.new( ( v1.pCoord + v2.pCoord ) / 2 )
-		vs.setScaling( ( v1.getScaling() + v2.getScaling() ) / 2 )
-		return vs
+	public func int getWavelet()
+		return pWavelet
 	end
+	
+	public func void setWavelet( int wavelet )
+		pWavelet = wavelet
+	end
+	
 	
 	public func void copyScaling( TerrainTreeVertex vertex )
 		setScaling( vertex.getScaling() )
 	end
 	
-	public func void updateScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
+	public func void updateRootLevelScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
 		addScaling( -tresUnlift( ( ( v1.getScaling() + v2.getScaling() ) / 2 ) + pWavelet ) - pScaling )
 	end
 	
@@ -78,6 +91,11 @@ class TerrainTreeVertex
 	
 	public func void addNode( TerrainTreeNode node )
 		pNodes.add( node )
+	end
+	
+	
+	public func Vector getVector()
+		return Vector.new( pCoord.getX(), getScaling(), pCoord.getY() )
 	end
 	
 	

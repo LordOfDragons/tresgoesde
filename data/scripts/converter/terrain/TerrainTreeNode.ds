@@ -33,7 +33,7 @@ class TerrainTreeNode
 	private var TerrainTreeNode pParent
 	private var Point pCoordStart
 	private var Point pCoordEnd
-	private var bool pFlippedDiagonal
+	private var bool pFlipDiagonal
 	private var Array pVertices
 	
 	private var int pLevel
@@ -52,7 +52,8 @@ class TerrainTreeNode
 	public func new( Terrain terrain,  Point coordStart, Point coordEnd, bool flippedDiagonal )
 		pCoordStart = coordStart
 		pCoordEnd = coordEnd
-		pFlippedDiagonal = flippedDiagonal
+		pFlipDiagonal = flippedDiagonal
+		pChildren = Array.new()
 		
 		pCoeff = Array.newWith( 0, 0, 0 )
 		pBoundary = RectArea.new( coordStart, coordEnd - coordStart )
@@ -67,6 +68,11 @@ class TerrainTreeNode
 	public func void dispose()
 		pParent = null
 		pVertices = null
+		if pChildren != null
+			pChildren.forEach( block TerrainTreeNode each
+				each.dispose()
+			end )
+		end
 	end
 	
 	
@@ -86,8 +92,8 @@ class TerrainTreeNode
 		return pCoordEnd
 	end
 	
-	public func bool getFlippedDiagonal()
-		return pFlippedDiagonal
+	public func bool getFlipDiagonal()
+		return pFlipDiagonal
 	end
 	
 	public func int getDataBitCount()
@@ -146,14 +152,215 @@ class TerrainTreeNode
 		return pChildren.getAt( index ) cast TerrainTreeNode
 	end
 	
-	public func void setChildAt( int index, TerrainTreeNode child )
-		if pChildren == null
-			pChildren = Array.new( 4, null )
-		end
-		pChildren.setAt( index, child )
+	public func void addChild( TerrainTreeNode child )
+		pChildren.add( child )
 	end
 	
-	public func int indexOfChild( TerrainTreeNode child )
-		return pChildren.indexOf( child )
+	public func void dropChildren()
+		pChildren = null
+	end
+	
+	
+	public func void visitTriangles( Terrain.TriangleVisitor visitor )
+		if pChildren != null
+			pChildren.forEach( block TerrainTreeNode each
+				each.visitTriangles( visitor )
+			end )
+			return
+		end
+		
+		var Vector v1 = ( pVertices.getAt( 0 ) cast TerrainTreeVertex ).getVector()
+		var Vector v2 = ( pVertices.getAt( 1 ) cast TerrainTreeVertex ).getVector()
+		var Vector v3 = ( pVertices.getAt( 2 ) cast TerrainTreeVertex ).getVector()
+		var Vector v4 = ( pVertices.getAt( 3 ) cast TerrainTreeVertex ).getVector()
+		
+		if pFlipDiagonal
+			visitor.visitTriangle( v1, v4, v3 )
+			visitor.visitTriangle( v1, v3, v2 )
+			
+		else
+			visitor.visitTriangle( v4, v3, v2 )
+			visitor.visitTriangle( v4, v2, v1 )
+		end
+	end
+	
+	public func void subdivide( Terrain terrain )
+		if pChildren == null
+			return
+		end
+		
+		// find or create new vertices located along split edges including center
+		var Array nvertices = Array.new()
+		var TerrainTreeVertex ev1, ev2, v
+		var int i
+		
+		for i = 0 to 4
+			ev1 = pVertices.getAt( i ) cast TerrainTreeVertex
+			ev2 = pVertices.getAt( ( i + 1 ) % 4 ) cast TerrainTreeVertex
+			v = terrain.getTreeVertexAt( ( ev1.getCoord() + ev2.getCoord() ) / 2 )
+			if v == null
+				v = TerrainTreeVertex.new( ev1, ev2 )
+				terrain.treeVertexAdd( v )
+			end
+			nvertices.add( v )
+		end
+		
+		if pFlipDiagonal
+			ev1 = pVertices.getAt( 1 ) cast TerrainTreeVertex
+			ev2 = pVertices.getAt( 3 ) cast TerrainTreeVertex
+			
+		else
+			ev1 = pVertices.getAt( 0 ) cast TerrainTreeVertex
+			ev2 = pVertices.getAt( 2 ) cast TerrainTreeVertex
+		end
+		
+		v = TerrainTreeVertex.new( ev1, ev2 )
+		terrain.treeVertexAdd( v )
+		nvertices.add( v )
+		
+		// assign wavelet coefficients to vertices
+		( nvertices.getAt( 0 ) cast TerrainTreeVertex ).setWavelet( pCoeff.getAt( 0 ) cast int )
+		( nvertices.getAt( 4 ) cast TerrainTreeVertex ).setWavelet( pCoeff.getAt( 1 ) cast int )
+		( nvertices.getAt( 3 ) cast TerrainTreeVertex ).setWavelet( pCoeff.getAt( 2 ) cast int )
+		
+		// assign vertices to children
+		var TerrainTreeNode child = pChildren.getAt( 0 ) cast TerrainTreeNode
+		child.pVertices = Array.newWith( pVertices.getAt( 0 ), nvertices.getAt( 0 ), \
+			nvertices.getAt( 4 ), nvertices.getAt( 3 ) )
+		child.pVertices.forEach( block TerrainTreeVertex each
+			each.addNode( child )
+		end )
+		
+		child = pChildren.getAt( 1 ) cast TerrainTreeNode
+		child.pVertices = Array.newWith( nvertices.getAt( 0 ), pVertices.getAt( 1 ), \
+			nvertices.getAt( 1 ), nvertices.getAt( 4 ) )
+		child.pVertices.forEach( block TerrainTreeVertex each
+			each.addNode( child )
+		end )
+		
+		child = pChildren.getAt( 2 ) cast TerrainTreeNode
+		child.pVertices = Array.newWith( nvertices.getAt( 4 ), nvertices.getAt( 1 ), \
+			pVertices.getAt( 2 ), nvertices.getAt( 2 ) )
+		child.pVertices.forEach( block TerrainTreeVertex each
+			each.addNode( child )
+		end )
+		
+		child = pChildren.getAt( 3 ) cast TerrainTreeNode
+		child.pVertices = Array.newWith( nvertices.getAt( 3 ), nvertices.getAt( 4 ), \
+			nvertices.getAt( 2 ), pVertices.getAt( 3 ) )
+		child.pVertices.forEach( block TerrainTreeVertex each
+			each.addNode( child )
+		end )
+		
+		// update corners with wavelets
+		var Array corners = accumulateWavelets()
+		for i = 0 to 4
+			( pVertices.getAt( i ) cast TerrainTreeVertex ).addScaling( corners.getAt( i ) cast int )
+		end
+		
+		// calling this here has no effect compared to calling it at after all subdivides have been done
+		recalcDscScalingCoef( false )
+		// call recalcDscScalingCoef() on all neighbors
+		
+		pChildren.forEach( block TerrainTreeNode each
+			each.subdivide( terrain )
+		end )
+	end
+	
+	// translated from original trespasser code. returns accumulated wavelts as 4 element array
+	public func Array accumulateWavelets()
+		// accumulate the wavelet coeficients of this node as dictated by the definition of the 0-disc wavelet.
+		var int coef0 = pCoeff.getAt( 0 ) cast int
+		var int coef1 = pCoeff.getAt( 1 ) cast int
+		var int coef2 = pCoeff.getAt( 2 ) cast int
+		
+		var int c0 = coef0 + coef2
+		var int c1 = coef0
+		var int c2 = 0
+		var int c3 = coef2
+		
+		if pFlipDiagonal
+			c1 = c1 + coef1
+			c3 = c3 + coef1
+			
+		else
+			c0 = c0 + coef1
+			c2 = c2 + coef1
+		end
+		
+		// the wavelet data is reflected at the borders
+		if pIsBorderMinX
+			c0 = c0 + coef0
+			if pFlipDiagonal
+				c3 = c3 + coef1
+				
+			else
+				c0 = c0 + coef1
+			end
+		end
+		
+		if pIsBorderMinY
+			c0 = c0 + coef2
+			
+			if pFlipDiagonal
+				c1 = c1 + coef1
+				
+			else
+				c0 = c0 + coef1
+			end
+		end
+		
+		if pIsBorderMinX and pIsBorderMinY
+			c0 = c0 + coef1
+		end
+		
+		return Array.newWith( c0, c1, c2, c3 )
+	end
+	
+	// translated from original trespasser code
+	public func void recalcDscScalingCoef( bool descent )
+		if pChildren == null
+			return
+		end
+		
+		// at the boundary of the quad tree, make sure the descendant scaling coeficients are
+		// calculated from this node's reflected scaling coeficients.
+		var TerrainTreeNode child0 = pChildren.getAt( 0 ) cast TerrainTreeNode
+		var int level = ( child0.pVertices.getAt( 2 ) cast TerrainTreeVertex ).getRootLevel()
+		
+		if pIsBorderMaxX
+			( pVertices.getAt( 1 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 0 ) cast TerrainTreeVertex )
+			( pVertices.getAt( 2 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 3 ) cast TerrainTreeVertex )
+		end
+		
+		if pIsBorderMaxY
+			( pVertices.getAt( 2 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 1 ) cast TerrainTreeVertex )
+			( pVertices.getAt( 3 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 0 ) cast TerrainTreeVertex )
+		end
+		
+		var int i
+		for i = 0 to 4
+			( ( pChildren.getAt( i ) cast TerrainTreeNode ) \
+				.pVertices.getAt( ( i + 1 ) % 4 ) cast TerrainTreeVertex ).updateRootLevelScaling( \
+					pVertices.getAt( i ) cast TerrainTreeVertex, \
+					pVertices.getAt( ( i + 1 ) % 4 ) cast TerrainTreeVertex )
+		end
+		
+		if pFlipDiagonal
+			( child0.pVertices.getAt( 2 ) cast TerrainTreeVertex ).updateRootLevelScaling( \
+				pVertices.getAt( 1 ) cast TerrainTreeVertex, \
+				pVertices.getAt( 3 ) cast TerrainTreeVertex )
+			
+		else
+			( child0.pVertices.getAt( 2 ) cast TerrainTreeVertex ).updateRootLevelScaling( \
+				pVertices.getAt( 0 ) cast TerrainTreeVertex, \
+				pVertices.getAt( 2 ) cast TerrainTreeVertex )
+		end
+		
+		if descent
+			pChildren.forEach( block TerrainTreeNode each
+				each.recalcDscScalingCoef( true )
+			end )
+		end
 	end
 end

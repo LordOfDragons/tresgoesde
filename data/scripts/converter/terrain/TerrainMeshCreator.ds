@@ -1,0 +1,283 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+pin Dragengine.Gui.Layouts
+pin Dragengine.Gui.Events
+pin Dragengine.Scenery
+pin Dragengine.Utils
+
+
+/**
+ * Create mesh from Terrain.
+ */
+class TerrainMeshCreator implements Terrain.TriangleVisitor
+	class Face
+		private var int pVertex1
+		private var int pVertex2
+		private var int pVertex3
+		
+		
+		public func new( int vertex1, int vertex2, int vertex3 )
+			pVertex1 = vertex1
+			pVertex2 = vertex2
+			pVertex3 = vertex3
+		end
+		
+		
+		public func int getVertex1()
+			return pVertex1
+		end
+		
+		public func int getVertex2()
+			return pVertex2
+		end
+		
+		public func int getVertex3()
+			return pVertex3
+		end
+	end
+	
+	
+	private var Terrain pTerrain
+	private var Vector pVectorScale
+	private var Array pVertices
+	private var Array pFaces
+	
+	private var float pMinHeight
+	private var float pMaxHeight
+	private var int pRasterizeIndex
+	private var int pRasterizeWidth
+	private var int pRasterizeHeight
+	private var int pRasterizeTop
+	private var float pHeightScale
+	private var EditableImage pHeightMap
+	
+	
+	public func new( Terrain terrain )
+		pTerrain = terrain
+		pVectorScale = Vector.new( 1, terrain.getHeightScaleInv(), 1 )
+		pVertices = Array.new()
+		pFaces = Array.new()
+		pRasterizeIndex = 0
+	end
+	
+	
+	public func int getVertexCount()
+		return pVertices.getCount()
+	end
+	
+	public func Vector getVertexAt( int index )
+		return pVertices.getAt( index ) cast Vector
+	end
+	
+	public func void forEachVertex( Block ablock )
+		pVertices.forEach( ablock )
+	end
+	
+	
+	public func int getFaceCount()
+		return pFaces.getCount()
+	end
+	
+	public func Face getFaceAt( int index )
+		return pFaces.getAt( index ) cast Face
+	end
+	
+	public func void forEachFace( Block ablock )
+		pFaces.forEach( ablock )
+	end
+	
+	
+	public func EditableImage getHeightMap()
+		return pHeightMap
+	end
+	
+	
+	public func void createMesh()
+		pTerrain.visitTriangles( this )
+		
+		var Array heights = pVertices.map( block Vector each
+			return each.getY()
+		end )
+		
+		pMinHeight = heights.fold( block float a, float b
+			return DEMath.min( a, b )
+		end ) cast float
+		
+		pMaxHeight = heights.fold( block float a, float b
+			return DEMath.max( a, b )
+		end ) cast float
+		
+		pRasterizeWidth = pTerrain.getCoordSize().getX() + 1
+		pRasterizeHeight = pTerrain.getCoordSize().getY() + 1
+		pRasterizeTop = pTerrain.getCoordSize().getY()
+		pHeightScale = 1.0 / DEMath.max( pMaxHeight - pMinHeight, 0.1 )
+	end
+	
+	public func int getProgressTarget()
+		return pFaces.getCount()
+	end
+	
+	public func int getProgress()
+		return pRasterizeIndex
+	end
+	
+	public func bool rasterHeightMap()
+		if pHeightMap == null
+			pHeightMap = EditableImage.new( pRasterizeWidth, pRasterizeHeight, 1, 1, 16 )
+			pHeightMap.clear( Color.black )
+			pRasterizeIndex = 0
+		end
+		
+		if pRasterizeIndex == pFaces.getCount()
+			return false
+		end
+		
+		var int rasterLastIndex = DEMath.min( pRasterizeIndex + 10, pFaces.getCount() )
+		for pRasterizeIndex = pRasterizeIndex to rasterLastIndex
+			var Face face = pFaces.getAt( pRasterizeIndex ) cast Face
+			var Vector v1 = pVertices.getAt( face.getVertex1() ) cast Vector
+			var Vector v2 = pVertices.getAt( face.getVertex2() ) cast Vector
+			var Vector v3 = pVertices.getAt( face.getVertex3() ) cast Vector
+			
+			var Vector smallest = v1.smallest( v2 ).smallest( v3 )
+			var Vector largest = v1.largest( v2 ).largest( v3 )
+			
+			var int firstScanline = ( smallest.getZ() + 0.5 ) cast int
+			var int lastScanline = ( largest.getZ() + 0.5 ) cast int
+			var int scanlineCount = lastScanline - firstScanline + 1
+			
+			var Array beginScanline = Array.new( scanlineCount, Vector2.new( pRasterizeWidth, 0 ) )
+			var Array endScanline = Array.new( scanlineCount, Vector2.new( -1, 0 ) )
+			
+			rasterLine( v1, v2, beginScanline, endScanline, firstScanline )
+			rasterLine( v2, v3, beginScanline, endScanline, firstScanline )
+			rasterLine( v3, v1, beginScanline, endScanline, firstScanline )
+	// 		GameApp.getApp().getConsole().addMessage("" + Array.newWith(firstScanline, lastScanline, scanlineCount, beginScanline, endScanline))
+	// 		GameApp.getApp().getConsole().addMessage("" + Array.newWith(v1, v2, v3))
+			
+			var float z, height, stepZ
+			var int i, j, x, xcount
+			var Vector2 sf, st
+			
+			for i = 0 to scanlineCount
+				sf = beginScanline.getAt( i ) cast Vector2
+				st = endScanline.getAt( i ) cast Vector2
+				
+				x = ( sf.getX() + 0.5 ) cast int
+				z = sf.getY()
+				
+				xcount = ( st.getX() + 0.5 ) cast int - x
+				
+				height = ( z - pMinHeight ) * pHeightScale
+				pHeightMap.setAt( x, pRasterizeTop - ( firstScanline + i ), Color.new( height, height, height ) )
+				if xcount > 0
+					stepZ = ( st.getY() - z ) / ( xcount + 1 )
+					for j = 0 to xcount
+						z += stepZ
+						height = ( z - pMinHeight ) * pHeightScale
+						pHeightMap.setAt( x + j, pRasterizeTop - ( firstScanline + i ), Color.new( height, height, height ) )
+					end
+				end
+			end
+		end
+		
+		if pRasterizeIndex == pFaces.getCount()
+			pHeightMap.contentChanged()
+		end
+		
+		return true
+	end
+	
+	private func void rasterLine( Vector lineFrom, Vector lineTo, \
+	Array beginScanline, Array endScanline, int firstScanline )
+		var int lineSteps = ( DEMath.fabs( lineTo.getZ() - lineFrom.getZ() ) + 0.5 ) cast int
+		if lineSteps < 1
+			var int rz = ( lineFrom.getZ() + 0.5 ) cast int
+			var float x
+			
+			if lineFrom.getX() < lineTo.getX()
+				x = lineFrom.getX()
+				if x <= ( beginScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+					beginScanline.setAt( rz - firstScanline, Vector2.new( x, lineFrom.getY() ) )
+				end
+				if x >= ( endScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+					endScanline.setAt( rz - firstScanline, Vector2.new( x, lineTo.getY() ) )
+				end
+				
+			else
+				x = lineTo.getX()
+				if x <= ( beginScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+					beginScanline.setAt( rz - firstScanline, Vector2.new( x, lineTo.getY() ) )
+				end
+				if x >= ( endScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+					endScanline.setAt( rz - firstScanline, Vector2.new( x, lineFrom.getY() ) )
+				end
+			end
+			//GameApp.getApp().getConsole().addMessage("X1 " + Array.newWith(beginScanline, endScanline))
+			return
+		end
+		
+		var float x = lineFrom.getX()
+		var float y = lineFrom.getY()
+		var float z = lineFrom.getZ()
+		var int rz = ( z + 0.5 ) cast int
+		
+		if x <= ( beginScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+			beginScanline.setAt( rz - firstScanline, Vector2.new( x, y ) )
+		end
+		if x >= ( endScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+			endScanline.setAt( rz - firstScanline, Vector2.new( x, y ) )
+		end
+		
+		var float stepX = ( lineTo.getX() - x ) / lineSteps
+		var float stepY = ( lineTo.getY() - y ) / lineSteps
+		var float stepZ = ( lineTo.getZ() - z ) / lineSteps
+		var float rx
+		var int i
+		
+		for i = 0 to lineSteps
+			x += stepX
+			y += stepY
+			z += stepZ
+			rx = DEMath.floor( x + 0.5 )
+			rz = ( z + 0.5 ) cast int
+			if rx <= ( beginScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+				beginScanline.setAt( rz - firstScanline, Vector2.new( rx, y ) )
+			end
+			if rx >= ( endScanline.getAt( rz - firstScanline ) cast Vector2 ).getX()
+				endScanline.setAt( rz - firstScanline, Vector2.new( rx, y ) )
+			end
+		end
+		//GameApp.getApp().getConsole().addMessage("X2 " + Array.newWith(beginScanline, endScanline))
+	end
+	
+	
+	public func void visitTriangle( Vector v1, Vector v2, Vector v3 )
+		var int index = pVertices.getCount()
+		pVertices.add( v1.compMultiply( pVectorScale ) )
+		pVertices.add( v2.compMultiply( pVectorScale ) )
+		pVertices.add( v3.compMultiply( pVectorScale ) )
+		pFaces.add( Face.new( index, index + 1, index + 2 ) )
+	end
+end
