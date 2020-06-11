@@ -34,11 +34,6 @@ class PABasic extends BAAFirstPerson
 		super.activate( actor )
 	end
 	
-	protected func void updateAICollider( float elapsed )
-		// no terrain yet
-		colliderAI.setFromLocomotion( locomotion )
-	end
-	
 	
 	public func void log( String message )
 		GameApp.getApp().getConsole().addMessage( className().split( '.' ).getAt( -1 ).toString() \

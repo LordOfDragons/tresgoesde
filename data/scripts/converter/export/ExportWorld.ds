@@ -48,6 +48,8 @@ class ExportWorld
 		tag.setAttribute( "y", -9.81 )
 		tag.setAttribute( "z", 0 )
 		
+		pTagWorld.addDataTag( "heightTerrain", "terrain/map.deterrain" )
+		
 		pObjectID = MutableID.new( 1 )
 		pTagWorld.addDataTag( "nextObjectID", UniqueID.new( objectCount + 1 ).toHexString() )
 	end

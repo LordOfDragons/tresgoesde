@@ -77,6 +77,8 @@ class TerrainLoader extends FrameUpdateListener
 	private var BitReader pBitReader
 	private var Array pNodeStack
 	private var int pProcessedNodeCount
+	private var Array pNodes
+	private var int pNextIndex
 	
 	
 	public func new( String filename, Listener listener )
@@ -84,6 +86,7 @@ class TerrainLoader extends FrameUpdateListener
 		pState = State.readHeader
 		pListener = listener
 		pNodeStack = Array.new()
+		pNodes = Array.new()
 	end
 	
 	public func void dispose()
@@ -92,6 +95,7 @@ class TerrainLoader extends FrameUpdateListener
 			pTerrain = null
 		end
 		pNodeStack = null
+		pNodes = null
 	end
 	
 	
@@ -312,15 +316,18 @@ class TerrainLoader extends FrameUpdateListener
 		for i = 0 to 50
 			readSingleNode()
 			if pState != State.readNode
+				if pTerrain.getTotalNodeCount() == 0
+					pTerrain.setTotalNodeCount( pProcessedNodeCount )
+				end
 				break
 			end
 		end
 	end
 	
-	// Read ZeroTree.
 	private func void readSingleNode()
 		if pNodeStack.getCount() == 0
 			pState = State.subdivide
+			pNextIndex = -1
 			return
 		end
 		
@@ -329,6 +336,8 @@ class TerrainLoader extends FrameUpdateListener
 		
 		if stepNode.index == -1
 			pListener.updateProgressBar( pTerrain.getTotalNodeCount(), pProcessedNodeCount++ )
+			pNodes.add( stepNode.node )
+			
 			if pBitReader.read( 1 ) == 0
 				//GameApp.getApp().getConsole().addMessage("empty")
 				stepNode.node.dropChildren()
@@ -466,24 +475,44 @@ class TerrainLoader extends FrameUpdateListener
 	
 	// Subdivide
 	private func void subdivide()
-		pListener.log( "Subdivide..." )
-		pListener.updateProgressBar( 1, 1 )
+		if pNextIndex == -1
+			pListener.log( "Subdivide..." )
+			pNextIndex = 0
+		end
 		
-		pTerrain.subdivide()
-		pState = State.recalcCoeff
+		var int count = pNodes.getCount()
+		var int last = DEMath.min( pNextIndex + 50, count )
+		for pNextIndex = pNextIndex to last
+			( pNodes.getAt( pNextIndex ) cast TerrainTreeNode ).subdivide( pTerrain, false )
+		end
+		pListener.updateProgressBar( pNodes.getCount(), last )
+		
+		if last == count
+			pState = State.recalcCoeff
+			pNextIndex = -1
+		end
 	end
 	
 	// Recalculate coefficients
 	public func void recalcCoeff()
-		pListener.log( "Recalculate coefficients..." )
-		pListener.updateProgressBar( 1, 1 )
+		if pNextIndex == -1
+			pListener.log( "Recalculate coefficients..." )
+			pNextIndex = 0
+		end
 		
-		pTerrain.recalcDscScalingCoef()
+		var int count = pNodes.getCount()
+		var int last = DEMath.min( pNextIndex + 50, count )
+		for pNextIndex = pNextIndex to last
+			( pNodes.getAt( pNextIndex ) cast TerrainTreeNode ).recalcDscScalingCoef( false )
+		end
+		pListener.updateProgressBar( pNodes.getCount(), last )
 		
-		giveUp()
-		pState = State.done
-		var Terrain terrain = pTerrain
-		pTerrain = null
-		pListener.finished( terrain )
+		if last == count
+			giveUp()
+			pState = State.done
+			var Terrain terrain = pTerrain
+			pTerrain = null
+			pListener.finished( terrain )
+		end
 	end
 end

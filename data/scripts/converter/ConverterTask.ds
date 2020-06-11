@@ -63,6 +63,7 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 		loadSwp //<! Load swp
 		exportInstances //<! Export instances
 		exportWorld //<! Write world
+		exportTerrain //<! Write terrain
 		exportModels //<! Write models
 		exportOcclusionMeshes //<! Write occlusion meshes
 		exportSkins //<! Write skins
@@ -154,6 +155,9 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 			case State.exportWorld
 				exportWorld()
 				
+			case State.exportTerrain
+				exportTerrain()
+				
 			case State.exportModels
 				exportModels()
 				
@@ -190,7 +194,7 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 		if FileSystem.existsFile( pOutputDir.getPath() )
 			deleteDirectory( pOutputDir.getPath() )
 		end
-		pState = State.loadTerrain //State.loadPidFile
+		pState = State.loadPidFile
 	end
 	
 	private func void deleteDirectory( String directory )
@@ -448,21 +452,26 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 	
 	// Create terrain mesh.
 	private func void createTerrainMesh()
-		pListener.log( "Create Terrain Mesh ..." )
-		pTerrainMeshCreator = TerrainMeshCreator.new( pTerrain )
-		pTerrainMeshCreator.createMesh()
+		if pTerrainMeshCreator == null
+			pListener.log( "Create Terrain Mesh ..." )
+			pTerrainMeshCreator = TerrainMeshCreator.new( pTerrain )
+		end
 		
-		pListener.log( "Raster Terrain Height Map..." )
-		pState = State.rasterTerrainHeightMap
+		if pTerrainMeshCreator.createMesh()
+			pListener.updateProgressBar( pTerrainMeshCreator.getCreateProgressTarget(), pTerrainMeshCreator.getCreateProgress() )
+			
+		else
+			pListener.log( "Raster Terrain Height Map..." )
+			pState = State.rasterTerrainHeightMap
+		end
 	end
 	
 	// Raster terrain height map.
 	private func void rasterTerrainHeightMap()
 		if pTerrainMeshCreator.rasterHeightMap()
-			pListener.updateProgressBar( pTerrainMeshCreator.getProgressTarget(), pTerrainMeshCreator.getProgress() )
+			pListener.updateProgressBar( pTerrainMeshCreator.getRasterProgressTarget(), pTerrainMeshCreator.getRasterProgress() )
 			
 		else
-			pTerrainMeshCreator.getHeightMap().getImage().saveToFile("/converter/test.png")
 			pState = State.loadSwp
 		end
 	end
@@ -559,9 +568,18 @@ implements GroffLoader.Listener, PidFileLoader.Listener, TerrainLoader.Listener
 			pExportWorld.finish( ( pExporter.getPathMapDir() + "map.deworld" ).getPath() )
 			pExportWorld = null
 			
-			pState = State.exportModels
+			pState = State.exportTerrain
 			pNextIndex = -1
 		end
+	end
+	
+	// Export terrain.
+	private func void exportTerrain()
+		pListener.log( "Export terrain..." )
+		ExportTerrain.new( pTerrainMeshCreator ).export( pExporter )
+		
+		pState = State.exportModels
+		pNextIndex = -1
 	end
 	
 	// Export models.

@@ -36,6 +36,7 @@ class Exporter
 	private var File pPathSkinImageDir
 	private var File pPathRigDir
 	private var File pPathOcclusionMeshDir
+	private var File pPathTerrainDir
 	
 	private var Array pInstances
 	private var Set pModels
@@ -50,6 +51,7 @@ class Exporter
 		pPathSkinImageDir = pPathSkinDir + "image"
 		pPathRigDir = pPathMapDir + "rig"
 		pPathOcclusionMeshDir = pPathMapDir + "occlusionMesh"
+		pPathTerrainDir = pPathMapDir + "terrain"
 		
 		pInstances = Array.new()
 		pModels = Set.new()
@@ -82,6 +84,10 @@ class Exporter
 		return pPathOcclusionMeshDir
 	end
 	
+	public func File getPathTerrainDir()
+		return pPathTerrainDir
+	end
+	
 	
 	public func int getInstanceCount()
 		return pInstances.getCount()
@@ -93,6 +99,10 @@ class Exporter
 	
 	public func void forEachInstance( Block ablock )
 		pInstances.forEach( ablock )
+	end
+	
+	public func ExportInstance findInstance( Block ablock )
+		return pInstances.find( ablock ) cast ExportInstance
 	end
 	
 	

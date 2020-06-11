@@ -148,6 +148,10 @@ class TerrainTreeNode
 	end
 	
 	
+	public func bool hasChildren()
+		return pChildren != null
+	end
+	
 	public func TerrainTreeNode getChildAt( int index )
 		return pChildren.getAt( index ) cast TerrainTreeNode
 	end
@@ -184,7 +188,7 @@ class TerrainTreeNode
 		end
 	end
 	
-	public func void subdivide( Terrain terrain )
+	public func void subdivide( Terrain terrain, bool recursive )
 		if pChildren == null
 			return
 		end
@@ -258,13 +262,15 @@ class TerrainTreeNode
 			( pVertices.getAt( i ) cast TerrainTreeVertex ).addScaling( corners.getAt( i ) cast int )
 		end
 		
-		// calling this here has no effect compared to calling it at after all subdivides have been done
+		// calling this here has no effect compared to calling it at after all subdivides have been done?
 		recalcDscScalingCoef( false )
 		// call recalcDscScalingCoef() on all neighbors
 		
-		pChildren.forEach( block TerrainTreeNode each
-			each.subdivide( terrain )
-		end )
+		if recursive
+			pChildren.forEach( block TerrainTreeNode each
+				each.subdivide( terrain, recursive )
+			end )
+		end
 	end
 	
 	// translated from original trespasser code. returns accumulated wavelts as 4 element array

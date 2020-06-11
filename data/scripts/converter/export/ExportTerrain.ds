@@ -1,0 +1,83 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Converting
+
+
+pin Dragengine.Gui
+pin Dragengine.XML
+
+
+/**
+ * Export skin.
+ */
+class ExportTerrain
+	private var TerrainMeshCreator pTerrainMeshCreator
+	private var ExportInstance pTerrainPlacement
+	
+	
+	public func new( TerrainMeshCreator terrainMeshCreator )
+		pTerrainMeshCreator = terrainMeshCreator
+	end
+	
+	
+	public func void export( Exporter exporter )
+		pTerrainPlacement = exporter.findInstance( block ExportInstance each
+			return each.getClass().equals( "TerrainPlacement" )
+		end )
+		
+		var EasyXML xmlTerrain = EasyXML.new()
+		
+		var EasyXMLElement tagTerrain = EasyXMLElement.new( EasyXMLElementType.tag )
+		var Terrain terrain = pTerrainMeshCreator.getTerrain()
+		tagTerrain.setTagName( "heightTerrain" )
+		tagTerrain.setAttribute( "sectorSize", terrain.getTerSize().getX() )
+		tagTerrain.setAttribute( "sectorResolution", terrain.getCoordSize().getX() + 1 )
+		xmlTerrain.setRootElement( tagTerrain )
+		
+		tagTerrain.addDataTag( "baseHeight", pTerrainMeshCreator.getBaseHeight() )
+		tagTerrain.addDataTag( "heightScaling", pTerrainMeshCreator.getHeightScale() )
+		
+		writeSector( exporter, Point.new( 0, 0 ), tagTerrain )
+		
+		xmlTerrain.writeToFile( FileWriter.new( ( exporter.getPathTerrainDir() + "map.deterrain" ).getPath() ), false )
+	end
+	
+	
+	private func void writeSector( Exporter exporter, Point coords, EasyXMLElement tagTerrain )
+		var EasyXMLElement tagSector = tagTerrain.addTag( "sector" )
+		tagSector.setAttribute( "x", coords.getX() )
+		tagSector.setAttribute( "z", coords.getY() )
+		
+		var String baseName = "sector-" + coords.getX() + "-" + coords.getY()
+		
+		var File path = exporter.getPathTerrainDir() + ( baseName + "-heightmap.png" )
+		pTerrainMeshCreator.getHeightMap().getImage().saveToFile( path.getPath() )
+		
+		tagSector.addDataTag( "heightImage", baseName + "-heightmap.png" )
+		
+		// textures
+		var EasyXMLElement tagTexture = tagSector.addTag( "texture" )
+		tagTexture.setAttribute( "name", "default" )
+		
+		tagTexture.addDataTag( "skin", "../skin/" + pTerrainPlacement.getModel().getName().getName() + ".deskin" )
+	end
+end

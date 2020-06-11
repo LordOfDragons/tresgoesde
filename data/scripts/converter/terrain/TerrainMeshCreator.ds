@@ -57,6 +57,16 @@ class TerrainMeshCreator implements Terrain.TriangleVisitor
 		end
 	end
 	
+	private class StepNode
+		public var TerrainTreeNode node
+		public var int index
+		public func new( TerrainTreeNode node )
+			this.node = node
+			index = -1
+		end
+	end
+	
+	
 	
 	private var Terrain pTerrain
 	private var Vector pVectorScale
@@ -69,8 +79,12 @@ class TerrainMeshCreator implements Terrain.TriangleVisitor
 	private var int pRasterizeWidth
 	private var int pRasterizeHeight
 	private var int pRasterizeTop
+	private var float pBaseHeight
 	private var float pHeightScale
+	private var float pInvHeightScale
 	private var EditableImage pHeightMap
+	private var Array pNodeStack
+	private var int pProcessedNodeCount
 	
 	
 	public func new( Terrain terrain )
@@ -81,6 +95,10 @@ class TerrainMeshCreator implements Terrain.TriangleVisitor
 		pRasterizeIndex = 0
 	end
 	
+	
+	public func Terrain getTerrain()
+		return pTerrain
+	end
 	
 	public func int getVertexCount()
 		return pVertices.getCount()
@@ -113,32 +131,93 @@ class TerrainMeshCreator implements Terrain.TriangleVisitor
 	end
 	
 	
-	public func void createMesh()
-		pTerrain.visitTriangles( this )
-		
-		var Array heights = pVertices.map( block Vector each
-			return each.getY()
-		end )
-		
-		pMinHeight = heights.fold( block float a, float b
-			return DEMath.min( a, b )
-		end ) cast float
-		
-		pMaxHeight = heights.fold( block float a, float b
-			return DEMath.max( a, b )
-		end ) cast float
-		
-		pRasterizeWidth = pTerrain.getCoordSize().getX() + 1
-		pRasterizeHeight = pTerrain.getCoordSize().getY() + 1
-		pRasterizeTop = pTerrain.getCoordSize().getY()
-		pHeightScale = 1.0 / DEMath.max( pMaxHeight - pMinHeight, 0.1 )
+	public func float getBaseHeight()
+		return pBaseHeight
 	end
 	
-	public func int getProgressTarget()
+	public func float getHeightScale()
+		return pHeightScale
+	end
+	
+	
+	public func int getCreateProgressTarget()
+		return pTerrain.getTotalNodeCount()
+	end
+	
+	public func int getCreateProgress()
+		return pProcessedNodeCount
+	end
+	
+	public func bool createMesh()
+		var int i
+		for i = 0 to 50
+			if not createMeshSingle()
+				return false
+			end
+		end
+		return true
+	end
+	
+	public func bool createMeshSingle()
+		if pNodeStack == null
+			pNodeStack = Array.new()
+			pNodeStack.add( StepNode.new( pTerrain.getTree() ) )
+			pProcessedNodeCount = 0
+			
+		elif pNodeStack.getCount() == 0
+			pMinHeight = 10000.0
+			pMaxHeight = -10000.0
+			
+			var float height
+			pVertices.forEach( block Vector each
+				height = each.getY()
+				pMinHeight = DEMath.min( pMinHeight, height )
+				pMaxHeight = DEMath.max( pMaxHeight, height )
+			end )
+			
+			pRasterizeWidth = pTerrain.getCoordSize().getX() + 1
+			pRasterizeHeight = pTerrain.getCoordSize().getY() + 1
+			pRasterizeTop = pTerrain.getCoordSize().getY()
+			pBaseHeight = ( pMinHeight + pMaxHeight ) * 0.5
+			pHeightScale = pMaxHeight - pMinHeight
+			pInvHeightScale = 1.0 / DEMath.max( pHeightScale, 0.1 )
+			
+			return false
+		end
+		
+		var StepNode stepNode = pNodeStack.getAt( -1 ) cast StepNode
+		if stepNode.index == -1
+			pProcessedNodeCount++
+			
+			if stepNode.node.hasChildren()
+				stepNode.index = 0
+				
+			else
+				stepNode.node.visitTriangles( this )
+				pNodeStack.removeFrom( pNodeStack.getCount() - 1 )
+				
+				while pNodeStack.getCount() > 0
+					stepNode = pNodeStack.getAt( -1 ) cast StepNode
+					stepNode.index++
+					if stepNode.index < 4
+						break
+					end
+					
+					pNodeStack.removeFrom( pNodeStack.getCount() - 1 )
+				end
+				return createMeshSingle()
+			end
+		end
+		
+		pNodeStack.add( StepNode.new( stepNode.node.getChildAt( stepNode.index ) ) )
+		return true
+	end
+	
+	public func int getRasterProgressTarget()
 		return pFaces.getCount()
 	end
 	
-	public func int getProgress()
+	public func int getRasterProgress()
 		return pRasterizeIndex
 	end
 	
@@ -189,13 +268,13 @@ class TerrainMeshCreator implements Terrain.TriangleVisitor
 				
 				xcount = ( st.getX() + 0.5 ) cast int - x
 				
-				height = ( z - pMinHeight ) * pHeightScale
+				height = ( z - pMinHeight ) * pInvHeightScale
 				pHeightMap.setAt( x, pRasterizeTop - ( firstScanline + i ), Color.new( height, height, height ) )
 				if xcount > 0
 					stepZ = ( st.getY() - z ) / ( xcount + 1 )
 					for j = 0 to xcount
 						z += stepZ
-						height = ( z - pMinHeight ) * pHeightScale
+						height = ( z - pMinHeight ) * pInvHeightScale
 						pHeightMap.setAt( x + j, pRasterizeTop - ( firstScanline + i ), Color.new( height, height, height ) )
 					end
 				end

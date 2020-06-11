@@ -58,6 +58,7 @@ class StartGame extends WindowGameWorld.Loader
 			// TEMP HACK
 			var SpawnPoint spawn = SpawnPoint.new( "player" )
 			spawn.setPosition( DVector.new( 2.2302 + 0.6, 2.2539, -3.1609 ) )
+				spawn.setPosition( spawn.getPosition() + DVector.new( 0, 10, 0 ) )
 			spawn.setOrientation( Quaternion.new() )
 			spawn.spawn( gameWorld, player )
 			// TEMP HACK
