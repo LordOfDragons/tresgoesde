@@ -106,4 +106,10 @@ class TerrainTreeVertex
 	static private func int tresUnlift( int value )
 		return value << 3
 	end
+	
+	
+	public func String debug( String prefix )
+		return prefix + "(" + pCoord.getX() + "," + pCoord.getY() + " rl=" + pRootLevel \
+			+ " s=" + pScaling + " w=" + pWavelet + ")"
+	end
 end

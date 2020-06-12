@@ -193,6 +193,12 @@ class TerrainTreeNode
 			return
 		end
 		
+		GameApp.getApp().getConsole().addMessage("ENTER Subdivide " \
+			+ ( pVertices.getAt( 0 ) cast TerrainTreeVertex ).debug(" v1") \
+			+ ( pVertices.getAt( 1 ) cast TerrainTreeVertex ).debug(" v2") \
+			+ ( pVertices.getAt( 2 ) cast TerrainTreeVertex ).debug(" v3") \
+			+ ( pVertices.getAt( 3 ) cast TerrainTreeVertex ).debug(" v4") )
+
 		// find or create new vertices located along split edges including center
 		var Array nvertices = Array.new()
 		var TerrainTreeVertex ev1, ev2, v
@@ -257,7 +263,9 @@ class TerrainTreeNode
 		end )
 		
 		// update corners with wavelets
+		GameApp.getApp().getConsole().addMessage("  coefs=" + pCoeff )
 		var Array corners = accumulateWavelets()
+		GameApp.getApp().getConsole().addMessage("  corners=" + corners )
 		for i = 0 to 4
 			( pVertices.getAt( i ) cast TerrainTreeVertex ).addScaling( corners.getAt( i ) cast int )
 		end
@@ -271,6 +279,12 @@ class TerrainTreeNode
 				each.subdivide( terrain, recursive )
 			end )
 		end
+		
+		GameApp.getApp().getConsole().addMessage("EXIT Subdivide " \
+			+ ( pVertices.getAt( 0 ) cast TerrainTreeVertex ).debug(" v1") \
+			+ ( pVertices.getAt( 1 ) cast TerrainTreeVertex ).debug(" v2") \
+			+ ( pVertices.getAt( 2 ) cast TerrainTreeVertex ).debug(" v3") \
+			+ ( pVertices.getAt( 3 ) cast TerrainTreeVertex ).debug(" v4") )
 	end
 	
 	// translated from original trespasser code. returns accumulated wavelts as 4 element array
