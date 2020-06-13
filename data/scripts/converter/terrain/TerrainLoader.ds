@@ -166,10 +166,10 @@ class TerrainLoader extends FrameUpdateListener
 		var TerrainTreeNode tree = TerrainTreeNode.new( pTerrain, coordStart, coordEnd, false )
 		pTerrain.setTree( tree )
 		
-		tree.addVertex( TerrainTreeVertex.new( coordStart, 0 ) )
-		tree.addVertex( TerrainTreeVertex.new( Point.new( coordEnd.getX(), coordStart.getY() ), 0 ) )
-		tree.addVertex( TerrainTreeVertex.new( coordEnd, 0 ) )
-		tree.addVertex( TerrainTreeVertex.new( Point.new( coordStart.getX(), coordEnd.getY() ), 0 ) )
+		tree.addVertex( TerrainTreeVertex.new( coordStart ) )
+		tree.addVertex( TerrainTreeVertex.new( Point.new( coordEnd.getX(), coordStart.getY() ) ) )
+		tree.addVertex( TerrainTreeVertex.new( coordEnd ) )
+		tree.addVertex( TerrainTreeVertex.new( Point.new( coordStart.getX(), coordEnd.getY() ) ) )
 		
 		tree.forEachVertex( block TerrainTreeVertex each
 			pTerrain.treeVertexAdd( each )

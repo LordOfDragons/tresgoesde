@@ -31,23 +31,20 @@ pin Dragengine.Scenery
  */
 class TerrainTreeVertex
 	private var Point pCoord
-	private var int pRootLevel
 	private var int pScaling
 	private var int pWavelet
 	private var Array pNodes
 	
 	
-	public func new( Point coord, int rootLevel )
+	public func new( Point coord )
 		pCoord = coord
-		pRootLevel = rootLevel
 		pScaling = 0
 		pWavelet = 0
 		pNodes = Array.new()
 	end
 	
-	public func new( TerrainTreeVertex v1, TerrainTreeVertex v2 ) \
-	this( ( v1.pCoord + v2.pCoord ) / 2, DEMath.max( v1.pRootLevel, v2.pRootLevel ) + 1 )
-		setScaling( ( v1.getScaling() + v2.getScaling() ) / 2 )
+	public func new( TerrainTreeVertex v1, TerrainTreeVertex v2 ) this( ( v1.pCoord + v2.pCoord ) / 2 )
+		setScaling( tresPredict( v1.getScaling() + v2.getScaling() ) )
 	end
 	
 	
@@ -55,12 +52,12 @@ class TerrainTreeVertex
 		return pCoord
 	end
 	
-	public func int getRootLevel()
-		return pRootLevel
-	end
-	
 	public func int getScaling()
 		return -tresLift( pScaling )
+	end
+	
+	public func int getRawScaling()
+		return pScaling
 	end
 	
 	public func void setScaling( int value )
@@ -80,8 +77,8 @@ class TerrainTreeVertex
 		setScaling( vertex.getScaling() )
 	end
 	
-	public func void updateRootLevelScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
-		addScaling( -tresUnlift( ( ( v1.getScaling() + v2.getScaling() ) / 2 ) + pWavelet ) - pScaling )
+	public func void updateScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
+		addScaling( -tresUnlift( tresPredict( v1.getScaling() + v2.getScaling() ) + pWavelet ) - pScaling )
 	end
 	
 	public func void addScaling( int value )
@@ -107,9 +104,12 @@ class TerrainTreeVertex
 		return value << 3
 	end
 	
+	static private func int tresPredict( int value )
+		return ( value + 1 ) >> 1
+	end
+	
 	
 	public func String debug( String prefix )
-		return prefix + "(" + pCoord.getX() + "," + pCoord.getY() + " rl=" + pRootLevel \
-			+ " s=" + pScaling + " w=" + pWavelet + ")"
+		return prefix + "(" + pCoord.getX() + "," + pCoord.getY() + " s=" + pScaling + " w=" + pWavelet + ")"
 	end
 end

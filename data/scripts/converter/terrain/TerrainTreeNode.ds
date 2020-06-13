@@ -143,6 +143,10 @@ class TerrainTreeNode
 		pVertices.add( vertex )
 	end
 	
+	public func TerrainTreeVertex getVertexAt( int index )
+		return pVertices.getAt( index ) cast TerrainTreeVertex
+	end
+	
 	public func void forEachVertex( Block ablock )
 		pVertices.forEach( ablock )
 	end
@@ -173,10 +177,10 @@ class TerrainTreeNode
 			return
 		end
 		
-		var Vector v1 = ( pVertices.getAt( 0 ) cast TerrainTreeVertex ).getVector()
-		var Vector v2 = ( pVertices.getAt( 1 ) cast TerrainTreeVertex ).getVector()
-		var Vector v3 = ( pVertices.getAt( 2 ) cast TerrainTreeVertex ).getVector()
-		var Vector v4 = ( pVertices.getAt( 3 ) cast TerrainTreeVertex ).getVector()
+		var Vector v1 = getVertexAt( 0 ).getVector()
+		var Vector v2 = getVertexAt( 1 ).getVector()
+		var Vector v3 = getVertexAt( 2 ).getVector()
+		var Vector v4 = getVertexAt( 3 ).getVector()
 		
 		if pFlipDiagonal
 			visitor.visitTriangle( v1, v4, v3 )
@@ -193,20 +197,22 @@ class TerrainTreeNode
 			return
 		end
 		
+		/*
 		GameApp.getApp().getConsole().addMessage("ENTER Subdivide " \
-			+ ( pVertices.getAt( 0 ) cast TerrainTreeVertex ).debug(" v1") \
-			+ ( pVertices.getAt( 1 ) cast TerrainTreeVertex ).debug(" v2") \
-			+ ( pVertices.getAt( 2 ) cast TerrainTreeVertex ).debug(" v3") \
-			+ ( pVertices.getAt( 3 ) cast TerrainTreeVertex ).debug(" v4") )
-
+			+ getVertexAt( 0 ).debug(" v1") \
+			+ getVertexAt( 1 ).debug(" v2") \
+			+ getVertexAt( 2 ).debug(" v3") \
+			+ getVertexAt( 3 ).debug(" v4") )
+		*/
+		
 		// find or create new vertices located along split edges including center
 		var Array nvertices = Array.new()
 		var TerrainTreeVertex ev1, ev2, v
 		var int i
 		
 		for i = 0 to 4
-			ev1 = pVertices.getAt( i ) cast TerrainTreeVertex
-			ev2 = pVertices.getAt( ( i + 1 ) % 4 ) cast TerrainTreeVertex
+			ev1 = getVertexAt( i )
+			ev2 = getVertexAt( ( i + 1 ) % 4 )
 			v = terrain.getTreeVertexAt( ( ev1.getCoord() + ev2.getCoord() ) / 2 )
 			if v == null
 				v = TerrainTreeVertex.new( ev1, ev2 )
@@ -216,12 +222,12 @@ class TerrainTreeNode
 		end
 		
 		if pFlipDiagonal
-			ev1 = pVertices.getAt( 1 ) cast TerrainTreeVertex
-			ev2 = pVertices.getAt( 3 ) cast TerrainTreeVertex
+			ev1 = getVertexAt( 1 )
+			ev2 = getVertexAt( 3 )
 			
 		else
-			ev1 = pVertices.getAt( 0 ) cast TerrainTreeVertex
-			ev2 = pVertices.getAt( 2 ) cast TerrainTreeVertex
+			ev1 = getVertexAt( 0 )
+			ev2 = getVertexAt( 2 )
 		end
 		
 		v = TerrainTreeVertex.new( ev1, ev2 )
@@ -234,28 +240,28 @@ class TerrainTreeNode
 		( nvertices.getAt( 3 ) cast TerrainTreeVertex ).setWavelet( pCoeff.getAt( 2 ) cast int )
 		
 		// assign vertices to children
-		var TerrainTreeNode child = pChildren.getAt( 0 ) cast TerrainTreeNode
+		var TerrainTreeNode child = getChildAt( 0 )
 		child.pVertices = Array.newWith( pVertices.getAt( 0 ), nvertices.getAt( 0 ), \
 			nvertices.getAt( 4 ), nvertices.getAt( 3 ) )
 		child.pVertices.forEach( block TerrainTreeVertex each
 			each.addNode( child )
 		end )
 		
-		child = pChildren.getAt( 1 ) cast TerrainTreeNode
+		child = getChildAt( 1 )
 		child.pVertices = Array.newWith( nvertices.getAt( 0 ), pVertices.getAt( 1 ), \
 			nvertices.getAt( 1 ), nvertices.getAt( 4 ) )
 		child.pVertices.forEach( block TerrainTreeVertex each
 			each.addNode( child )
 		end )
 		
-		child = pChildren.getAt( 2 ) cast TerrainTreeNode
+		child = getChildAt( 2 )
 		child.pVertices = Array.newWith( nvertices.getAt( 4 ), nvertices.getAt( 1 ), \
 			pVertices.getAt( 2 ), nvertices.getAt( 2 ) )
 		child.pVertices.forEach( block TerrainTreeVertex each
 			each.addNode( child )
 		end )
 		
-		child = pChildren.getAt( 3 ) cast TerrainTreeNode
+		child = getChildAt( 3 )
 		child.pVertices = Array.newWith( nvertices.getAt( 3 ), nvertices.getAt( 4 ), \
 			nvertices.getAt( 2 ), pVertices.getAt( 3 ) )
 		child.pVertices.forEach( block TerrainTreeVertex each
@@ -263,11 +269,12 @@ class TerrainTreeNode
 		end )
 		
 		// update corners with wavelets
-		GameApp.getApp().getConsole().addMessage("  coefs=" + pCoeff )
+// 		GameApp.getApp().getConsole().addMessage("  coefs=" + pCoeff )
 		var Array corners = accumulateWavelets()
-		GameApp.getApp().getConsole().addMessage("  corners=" + corners )
+// 		GameApp.getApp().getConsole().addMessage("  corners=" + corners )
+// 		GameApp.getApp().getConsole().addMessage("  beforeUpdate " + debug1())
 		for i = 0 to 4
-			( pVertices.getAt( i ) cast TerrainTreeVertex ).addScaling( corners.getAt( i ) cast int )
+			getVertexAt( i ).addScaling( corners.getAt( i ) cast int )
 		end
 		
 		// calling this here has no effect compared to calling it at after all subdivides have been done?
@@ -280,11 +287,37 @@ class TerrainTreeNode
 			end )
 		end
 		
+		/*
 		GameApp.getApp().getConsole().addMessage("EXIT Subdivide " \
-			+ ( pVertices.getAt( 0 ) cast TerrainTreeVertex ).debug(" v1") \
-			+ ( pVertices.getAt( 1 ) cast TerrainTreeVertex ).debug(" v2") \
-			+ ( pVertices.getAt( 2 ) cast TerrainTreeVertex ).debug(" v3") \
-			+ ( pVertices.getAt( 3 ) cast TerrainTreeVertex ).debug(" v4") )
+			+ getVertexAt( 0 ).debug(" v1") \
+			+ getVertexAt( 1 ).debug(" v2") \
+			+ getVertexAt( 2 ).debug(" v3") \
+			+ getVertexAt( 3 ).debug(" v4") )
+		*/
+		GameApp.getApp().getConsole().addMessage("Subdivide " + debug1())
+		GameApp.getApp().getConsole().addMessage("  sub0" + getChildAt(0).debug1())
+		GameApp.getApp().getConsole().addMessage("  sub1" + getChildAt(1).debug1())
+		GameApp.getApp().getConsole().addMessage("  sub2" + getChildAt(2).debug1())
+		GameApp.getApp().getConsole().addMessage("  sub3" + getChildAt(3).debug1())
+	end
+	
+	private func String debug1()
+		return " v[" \
+				+ "(" + getVertexAt(0).getCoord().getX() + "," + getVertexAt(0).getCoord().getY() + ")" \
+				+ " (" + getVertexAt(1).getCoord().getX() + "," + getVertexAt(1).getCoord().getY() + ")" \
+				+ " (" + getVertexAt(2).getCoord().getX() + "," + getVertexAt(2).getCoord().getY() + ")" \
+				+ " (" + getVertexAt(3).getCoord().getX() + "," + getVertexAt(3).getCoord().getY() + ")" \
+			+ "] w=[" \
+				+ getVertexAt(0).getWavelet() \
+				+ " " + getVertexAt(1).getWavelet() \
+				+ " " + getVertexAt(2).getWavelet() \
+				+ " " + getVertexAt(3).getWavelet() \
+			+ "] s=[" \
+				+ getVertexAt(0).getRawScaling() \
+				+ " " + getVertexAt(1).getRawScaling() \
+				+ " " + getVertexAt(2).getRawScaling() \
+				+ " " + getVertexAt(3).getRawScaling() \
+			+ "]"
 	end
 	
 	// translated from original trespasser code. returns accumulated wavelts as 4 element array
@@ -345,36 +378,29 @@ class TerrainTreeNode
 		
 		// at the boundary of the quad tree, make sure the descendant scaling coeficients are
 		// calculated from this node's reflected scaling coeficients.
-		var TerrainTreeNode child0 = pChildren.getAt( 0 ) cast TerrainTreeNode
-		var int level = ( child0.pVertices.getAt( 2 ) cast TerrainTreeVertex ).getRootLevel()
+		var TerrainTreeNode child0 = getChildAt( 0 )
 		
 		if pIsBorderMaxX
-			( pVertices.getAt( 1 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 0 ) cast TerrainTreeVertex )
-			( pVertices.getAt( 2 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 3 ) cast TerrainTreeVertex )
+			getVertexAt( 1 ).copyScaling( getVertexAt( 0 ) )
+			getVertexAt( 2 ).copyScaling( getVertexAt( 3 ) )
 		end
 		
 		if pIsBorderMaxY
-			( pVertices.getAt( 2 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 1 ) cast TerrainTreeVertex )
-			( pVertices.getAt( 3 ) cast TerrainTreeVertex ).copyScaling( pVertices.getAt( 0 ) cast TerrainTreeVertex )
+			getVertexAt( 2 ).copyScaling( getVertexAt( 1 ) )
+			getVertexAt( 3 ).copyScaling( getVertexAt( 0 ) )
 		end
 		
 		var int i
 		for i = 0 to 4
-			( ( pChildren.getAt( i ) cast TerrainTreeNode ) \
-				.pVertices.getAt( ( i + 1 ) % 4 ) cast TerrainTreeVertex ).updateRootLevelScaling( \
-					pVertices.getAt( i ) cast TerrainTreeVertex, \
-					pVertices.getAt( ( i + 1 ) % 4 ) cast TerrainTreeVertex )
+			getChildAt( i ).getVertexAt( ( i + 1 ) % 4 ).updateScaling( \
+				getVertexAt( i ), getVertexAt( ( i + 1 ) % 4 ) )
 		end
 		
 		if pFlipDiagonal
-			( child0.pVertices.getAt( 2 ) cast TerrainTreeVertex ).updateRootLevelScaling( \
-				pVertices.getAt( 1 ) cast TerrainTreeVertex, \
-				pVertices.getAt( 3 ) cast TerrainTreeVertex )
+			child0.getVertexAt( 2 ).updateScaling( getVertexAt( 1 ), getVertexAt( 3 ) )
 			
 		else
-			( child0.pVertices.getAt( 2 ) cast TerrainTreeVertex ).updateRootLevelScaling( \
-				pVertices.getAt( 0 ) cast TerrainTreeVertex, \
-				pVertices.getAt( 2 ) cast TerrainTreeVertex )
+			child0.getVertexAt( 2 ).updateScaling( getVertexAt( 0 ), getVertexAt( 2 ) )
 		end
 		
 		if descent
