@@ -269,14 +269,17 @@ class TerrainTreeNode
 		end )
 		
 		// update corners with wavelets
-		var int level = getChildAt( 0 ).getVertexAt( 2 ).getRootLevel()
 // 		GameApp.getApp().getConsole().addMessage("  coefs=" + pCoeff )
 		var Array corners = accumulateWavelets()
-		var Array changes = Array.new()
+<<<<<<< Updated upstream
 // 		GameApp.getApp().getConsole().addMessage("  corners=" + corners )
 // 		GameApp.getApp().getConsole().addMessage("  beforeUpdate " + debug1())
+=======
+		GameApp.getApp().getConsole().addMessage("  corners=" + corners )
+		var int level = ( ( pChildren.getAt( 0 ) cast TerrainTreeNode ).pVertices.at( 2 ) cast TerrainTreeVertex ).getRootLevel()
+>>>>>>> Stashed changes
 		for i = 0 to 4
-			changes.add( getVertexAt( i ).addScaling( level, corners.getAt( i ) cast int ) )
+			getVertexAt( i ).addScaling( corners.getAt( i ) cast int )
 		end
 		
 		// calling this here has no effect compared to calling it at after all subdivides have been done?
@@ -382,29 +385,27 @@ class TerrainTreeNode
 		// calculated from this node's reflected scaling coeficients.
 		var TerrainTreeNode child0 = getChildAt( 0 )
 		
-		var int level = child0.getVertexAt( 2 ).getRootLevel()
-		
 		if pIsBorderMaxX
-			getVertexAt( 1 ).copyScaling( level, getVertexAt( 0 ) )
-			getVertexAt( 2 ).copyScaling( level, getVertexAt( 3 ) )
+			getVertexAt( 1 ).copyScaling( getVertexAt( 0 ) )
+			getVertexAt( 2 ).copyScaling( getVertexAt( 3 ) )
 		end
 		
 		if pIsBorderMaxY
-			getVertexAt( 2 ).copyScaling( level, getVertexAt( 1 ) )
-			getVertexAt( 3 ).copyScaling( level, getVertexAt( 0 ) )
+			getVertexAt( 2 ).copyScaling( getVertexAt( 1 ) )
+			getVertexAt( 3 ).copyScaling( getVertexAt( 0 ) )
 		end
 		
 		var int i
 		for i = 0 to 4
-			getChildAt( i ).getVertexAt( ( i + 1 ) % 4 ).setRootLevelScaling( \
+			getChildAt( i ).getVertexAt( ( i + 1 ) % 4 ).updateScaling( \
 				getVertexAt( i ), getVertexAt( ( i + 1 ) % 4 ) )
 		end
 		
 		if pFlipDiagonal
-			child0.getVertexAt( 2 ).setRootLevelScaling( getVertexAt( 1 ), getVertexAt( 3 ) )
+			child0.getVertexAt( 2 ).updateScaling( getVertexAt( 1 ), getVertexAt( 3 ) )
 			
 		else
-			child0.getVertexAt( 2 ).setRootLevelScaling( getVertexAt( 0 ), getVertexAt( 2 ) )
+			child0.getVertexAt( 2 ).updateScaling( getVertexAt( 0 ), getVertexAt( 2 ) )
 		end
 		
 		if descent

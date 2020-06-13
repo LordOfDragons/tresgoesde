@@ -173,7 +173,7 @@ class TerrainLoader extends FrameUpdateListener
 		
 		tree.forEachVertex( block TerrainTreeVertex each
 			pTerrain.treeVertexAdd( each )
-			each.setScaling( pTerrain.getRootCoeff() )
+			each.setScaling( 0, pTerrain.getRootCoeff() )
 			each.addNode( tree )
 		end )
 		

@@ -31,28 +31,38 @@ pin Dragengine.Scenery
  */
 class TerrainTreeVertex
 	private var Point pCoord
+<<<<<<< Updated upstream
+	private var int pScaling
+=======
 	private var int pRootLevel
 	private var int pCurLevel
 	private var Array pScaling
+>>>>>>> Stashed changes
 	private var int pWavelet
 	private var Array pNodes
 	
 	
 	public func new( Point coord )
 		pCoord = coord
-		pRootLevel = 0
-		pCurLevel = 0
+<<<<<<< Updated upstream
+		pScaling = 0
+=======
+		pRootLevel = rootLevel
+		pCurLevel = rootLevel
 		pScaling = Array.newWith( 0 )
+>>>>>>> Stashed changes
 		pWavelet = 0
 		pNodes = Array.new()
 	end
 	
+<<<<<<< Updated upstream
 	public func new( TerrainTreeVertex v1, TerrainTreeVertex v2 ) this( ( v1.pCoord + v2.pCoord ) / 2 )
-		pRootLevel = DEMath.max( v1.pRootLevel, v2.pRootLevel ) + 1
-		pCurLevel = pRootLevel
-		pScaling = Array.newWith( -tresUnlift( tresPredict( v1.getScaling( pRootLevel ) + v2.getScaling( pRootLevel ) ) ) )
-		pWavelet = 0
-		pNodes = Array.new()
+		setScaling( tresPredict( v1.getScaling() + v2.getScaling() ) )
+=======
+	public func new( TerrainTreeVertex v1, TerrainTreeVertex v2 ) \
+	this( ( v1.pCoord + v2.pCoord ) / 2, DEMath.max( v1.pRootLevel, v2.pRootLevel ) + 1 )
+		setScaling( pRootLevel, ( v1.getScaling( pRootLevel ) + v2.getScaling( pRootLevel ) ) / 2 )
+>>>>>>> Stashed changes
 	end
 	
 	
@@ -60,42 +70,44 @@ class TerrainTreeVertex
 		return pCoord
 	end
 	
-	public func int getRootLevel()
-		return pRootLevel
-	end
-	
 	public func int getScaling()
 		return -tresLift( getScaling( pCurLevel ) )
 	end
 	
+<<<<<<< Updated upstream
 	public func int getRawScaling()
-		return pScaling.getAt( pCurLevel - pRootLevel ) cast int
+		return pScaling
 	end
 	
+	public func void setScaling( int value )
+		pScaling = -tresUnlift( value )
+=======
 	public func int getScaling( int level )
-		var int index = indexFromLevel( level )
-		ensureScalingHasIndex( index )
-		return -tresLift( pScaling.getAt( index ) cast int )
-	end
-	
-	private func int indexFromLevel( int level )
 		if level < pRootLevel
 			throw EInvalidParam.new( "level(" + level + ") < root level(" + pRootLevel + ")" )
 		end
-		return level - pRootLevel
+		
+		level -= pRootLevel
+		ensureScalingHasIndex( level )
+		return -tresLift( pScaling.getAt( level ) cast int )
 	end
 	
 	public func void setScaling( int level, int value )
-		var int index = indexFromLevel( level )
-		ensureScalingHasIndex( index )
-		pScaling.setAt( index, -tresUnlift( value ) )
+		if level < pRootLevel
+			throw EInvalidParam.new( "level(" + level + ") < root level(" + pRootLevel + ")" )
+		end
+		
+		level -= pRootLevel
+		ensureScalingHasIndex( level )
+		pScaling.setAt( level, -tresUnlift( value ) )
 	end
 	
 	private func void ensureScalingHasIndex( int index )
 		var int i
-		for i = pScaling.getCount() - 1 to index
+		for i = pScaling.getSize() - 1 to index
 			pScaling.add( tresUnlift( tresLift( pScaling.getAt( i ) cast int ) ) ) // MakeLevel
 		end
+>>>>>>> Stashed changes
 	end
 	
 	public func int getWavelet()
@@ -107,12 +119,24 @@ class TerrainTreeVertex
 	end
 	
 	
+<<<<<<< Updated upstream
+	public func void copyScaling( TerrainTreeVertex vertex )
+		setScaling( vertex.getScaling() )
+	end
+	
+	public func void updateScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
+		addScaling( -tresUnlift( tresPredict( v1.getScaling() + v2.getScaling() ) + pWavelet ) - pScaling )
+	end
+	
+	public func void addScaling( int value )
+		pScaling += value
+=======
 	public func void copyScaling( int level, TerrainTreeVertex vertex )
 		setScaling( level, vertex.getScaling( level ) )
 	end
 	
-	public func void setRootLevelScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
-		var int predict = tresPredict( ( v1.getScaling( pRootLevel ) + v2.getScaling( pRootLevel ) ) )
+	public func void setRootScaling( TerrainTreeVertex v1, TerrainTreeVertex v2 )
+		var int predict = ( v1.getScaling( pRootLevel ) + v2.getScaling( pRootLevel ) ) / 2
 		var int old = pScaling.getAt( 0 ) cast int
 		var int new = -tresUnlift( predict + pWavelet )
 		
@@ -128,7 +152,11 @@ class TerrainTreeVertex
 	end
 	
 	public func int addScaling( int level, int value )
-		var int index = indexFromLevel( level )
+		if level < pRootLevel
+			throw EInvalidParam.new( "level(" + level + ") < root level(" + pRootLevel + ")" )
+		end
+		
+		var int index = level - pRootLevel
 		var int old = pScaling.getAt( index ) cast int
 		var int new = old + value
 		pScaling.setAt( index, new )
@@ -142,6 +170,7 @@ class TerrainTreeVertex
 		end
 		
 		return diff
+>>>>>>> Stashed changes
 	end
 	
 	
@@ -169,7 +198,6 @@ class TerrainTreeVertex
 	
 	
 	public func String debug( String prefix )
-		return prefix + "(" + pCoord.getX() + "," + pCoord.getY() + " rl=" + pRootLevel \
-			+ " s=" + pScaling + " w=" + pWavelet + ")"
+		return prefix + "(" + pCoord.getX() + "," + pCoord.getY() + " s=" + pScaling + " w=" + pWavelet + ")"
 	end
 end
