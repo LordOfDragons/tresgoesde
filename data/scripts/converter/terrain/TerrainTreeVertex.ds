@@ -32,7 +32,6 @@ pin Dragengine.Scenery
 class TerrainTreeVertex
 	private var Point pCoord
 	private var int pRootLevel
-	private var int pCurLevel
 	private var Array pScaling
 	private var int pWavelet
 	private var Array pNodes
@@ -41,7 +40,6 @@ class TerrainTreeVertex
 	public func new( Point coord )
 		pCoord = coord
 		pRootLevel = 0
-		pCurLevel = 0
 		pScaling = Array.newWith( 0 )
 		pWavelet = 0
 		pNodes = Array.new()
@@ -49,7 +47,6 @@ class TerrainTreeVertex
 	
 	public func new( TerrainTreeVertex v1, TerrainTreeVertex v2 ) this( ( v1.pCoord + v2.pCoord ) / 2 )
 		pRootLevel = DEMath.max( v1.pRootLevel, v2.pRootLevel ) + 1
-		pCurLevel = pRootLevel
 		pScaling = Array.newWith( -tresUnlift( tresPredict( v1.getScaling( pRootLevel ) + v2.getScaling( pRootLevel ) ) ) )
 		pWavelet = 0
 		pNodes = Array.new()
@@ -65,11 +62,11 @@ class TerrainTreeVertex
 	end
 	
 	public func int getScaling()
-		return -tresLift( getScaling( pCurLevel ) )
+		return -tresLift( pScaling.getAt( -1 ) cast int )
 	end
 	
 	public func int getRawScaling()
-		return pScaling.getAt( pCurLevel - pRootLevel ) cast int
+		return pScaling.getAt( -1 ) cast int
 	end
 	
 	public func int getScaling( int level )
@@ -121,7 +118,7 @@ class TerrainTreeVertex
 		var int diff = new - old
 		if diff != 0
 			var int i
-			for i = 1 to pCurLevel - pRootLevel
+			for i = 1 to pScaling.getCount()
 				pScaling.setAt( i, ( pScaling.getAt( i ) cast int ) + diff )
 			end
 		end
@@ -136,7 +133,7 @@ class TerrainTreeVertex
 		var int diff = tresUnlift( tresLift( new ) - tresLift( old ) )
 		if diff != 0
 			var int i
-			for i = index + 1 to pCurLevel - pRootLevel
+			for i = index + 1 to pScaling.getCount()
 				pScaling.setAt( i, ( pScaling.getAt( i ) cast int ) + diff )
 			end
 		end
