@@ -34,6 +34,7 @@ class Groff
 	private var Dictionary pNameTableByID
 	private var Dictionary pNameTableByName
 	private var Array pInstances
+	private var Dictionary pInstancesByName
 	private var int pHandleValueTable
 	private var Array pValueNameTable
 	private var Dictionary pValueNameTableByID
@@ -64,6 +65,7 @@ class Groff
 		pNameTableByID = Dictionary.new()
 		pNameTableByName = Dictionary.new()
 		pInstances = Array.new()
+		pInstancesByName = Dictionary.new()
 		pHandleValueTable = 0
 		pValueNameTable = Array.new()
 		pValueNameTableByID = Dictionary.new()
@@ -261,9 +263,20 @@ class Groff
 	
 	public func void addInstance( GroffInstance instance )
 		pInstances.add( instance )
+		if instance.getName() != null
+			pInstancesByName.setAt( instance.getName().getName(), instance )
+		end
 	end
 	
 	public func void forEachInstance( Block ablock )
 		pInstances.forEach( ablock )
+	end
+	
+	public func GroffInstance getInstanceByName( String name )
+		return pInstancesByName.getAt( name ) cast GroffInstance
+	end
+	
+	public func GroffInstance getInstanceByNameOrNull( String name )
+		return pInstancesByName.getAt( name, null ) cast GroffInstance
 	end
 end

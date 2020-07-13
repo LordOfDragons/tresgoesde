@@ -46,6 +46,9 @@ class ExportInstance
 	private var GroffModel pPhysics
 	private var GroffModel pOcclusion
 	
+	private var GroffInstance pZeroInstance
+	private var Array pPhysicsInstances
+	
 	
 	public func new( GroffInstance groffInstance )
 		pGroffInstance = groffInstance
@@ -53,6 +56,7 @@ class ExportInstance
 		pClass = ""
 		pProperties = StubWithProperties.new()
 		pIsVisible = true
+		pPhysicsInstances = Array.new()
 	end
 	
 	
@@ -110,10 +114,26 @@ class ExportInstance
 	public func void prepare( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
 		identify( groff, propertyClass, propertyVisible )
 		processProperties( groff )
+		findZeroInstance( groff )
 		buildPhysics( groff )
 	end
 	
+	public func void findZeroInstance( Groff groff )
+		var String name = pGroffInstance.getName().getName()
+		var String suffix = name.substring( -3 )
+		if suffix.getAt( 0 ) == '-' and not suffix.equals( "-00" )
+			pZeroInstance = groff.getInstanceByName( name.substring( 0, -3 ) + "-00" )
+		end
+	end
+	
 	private func void buildPhysics( Groff groff )
+		var Array keys = pProperties.getPropertyKeys()
+		keys.forEach( block String key
+			if key.getLength() == 7 and key.substring( 0, 5 ).equals( "Model" )
+				pPhysicsInstances.add( groff.getInstanceByName( pProperties.getPropertyValueFor( key, null ) ) )
+			end
+		end )
+		
 		// TODO
 		// go through properties and look for things like "ModelXX". collect them and build
 		// a rig out of it. this has to be stored then as *.derig
@@ -127,6 +147,10 @@ class ExportInstance
 	end
 	
 	public func void export( Exporter exporter, ExportWorld world )
+		if pClass.equals( "TerrainPlacement" )
+			return
+		end
+		
 		var EasyXMLElement tag, tagObject = world.getTagWorld().addTag( "object" )
 		tagObject.setAttribute( "id", world.nextObjectID().toHexString() )
 		
