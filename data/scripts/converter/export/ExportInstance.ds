@@ -115,7 +115,7 @@ class ExportInstance
 		identify( groff, propertyClass, propertyVisible )
 		processProperties( groff )
 		findZeroInstance( groff )
-		buildPhysics( groff )
+		findPhysicsInstances( groff )
 	end
 	
 	public func void findZeroInstance( Groff groff )
@@ -126,24 +126,80 @@ class ExportInstance
 		end
 	end
 	
-	private func void buildPhysics( Groff groff )
+	private func void findPhysicsInstances( Groff groff )
+		if pZeroInstance != null or not pProperties.getPropertyValueFor( "Type", "Box" ).equals( "Compound" )
+			return
+		end
+		
 		var Array keys = pProperties.getPropertyKeys()
 		keys.forEach( block String key
 			if key.getLength() == 7 and key.substring( 0, 5 ).equals( "Model" )
 				pPhysicsInstances.add( groff.getInstanceByName( pProperties.getPropertyValueFor( key, null ) ) )
 			end
 		end )
+	end
+	
+	class ExportRigBuilder extends RigBuilder
+		public var ShapeList shapes
+		public var Array properties
 		
-		// TODO
-		// go through properties and look for things like "ModelXX". collect them and build
-		// a rig out of it. this has to be stored then as *.derig
-		// => see "Type"=="Box"|"Compound"
-		// 
-		// NOTE
-		// ModelXX is used on all instances of a model but the position is relative to the
-		// basement model (-00). hence if the name of the model does end with "-XX" for XX
-		// 01, 02, .. then find the basement model with name "-00" and calculate the position
-		// relative to it
+		public func new()
+			shapes = ShapeList.new()
+			properties = Array.new()
+		end
+		
+		protected func void buildRig()
+			setCentralMassPoint( Vector.new() )
+			setModelCollision( false )
+			setShapes( shapes )
+			setShapeProperties( properties )
+		end
+	end
+	
+	// Call this only on "-00" instances
+	private func void exportRig( Exporter exporter, String filename )
+		var ExportRigBuilder builder = ExportRigBuilder.new()
+		var Vector minExtend, maxExtend, rotation
+		var DMatrix matrix, invMatrix
+		var GroffGeometry geometry
+		var DVector position
+		var float scale
+		
+		if pPhysicsInstances.getCount() > 0
+			position = Exporter.transformPosition( pGroffInstance.getPosition() )
+			rotation = Exporter.transformRotation( pGroffInstance.getRotation() )
+			scale = pGroffInstance.getScale()
+			
+			invMatrix = DMatrix.newSRT( DVector.new( scale, scale, scale ), \
+				DVector.new( rotation ), position ).getInverse()
+			
+			pPhysicsInstances.forEach( block GroffInstance each
+				position = Exporter.transformPosition( each.getPosition() )
+				rotation = Exporter.transformRotation( each.getRotation() )
+				scale = each.getScale()
+				
+				matrix = DMatrix.newSRT( DVector.new( scale, scale, scale ), \
+					DVector.new( rotation ), position ) * invMatrix
+				
+				geometry = each.getModel().getGeometry()
+				minExtend = Exporter.transformPosition( geometry.getBoundingBoxMin() )
+				maxExtend = Exporter.transformPosition( geometry.getBoundingBoxMax() )
+				builder.shapes.addBox( ( matrix * DVector.new( ( minExtend + maxExtend ) * 0.5 ) ).toVector(), \
+					( maxExtend - minExtend ) * ( 0.5 * matrix.getViewVector().getLength() ), \
+					matrix.normalize().toQuaternion() )
+				builder.properties.add( "" )
+			end )
+			
+		else
+			geometry = pModel.getGeometry()
+			scale = pGroffInstance.getScale() * 0.5
+			minExtend = geometry.getBoundingBoxMin()
+			maxExtend = geometry.getBoundingBoxMax()
+			builder.shapes.addBox( ( minExtend + maxExtend ) * scale, ( maxExtend - minExtend ) * scale )
+			builder.properties.add( "" )
+		end
+		
+		builder.build( "" ).save( filename )
 	end
 	
 	public func void export( Exporter exporter, ExportWorld world )
@@ -193,6 +249,15 @@ class ExportInstance
 				tag.setAttribute( "key", "component.skin" )
 				exporter.addSkin( pModel )
 			end
+			
+			var String rigFilename = ( exporter.getPathRigDir() + ( pModel.getName().getName() + ".derig" ) ).getPath()
+			
+			if pZeroInstance == null
+				exportRig( exporter, rigFilename )
+			end
+			
+			tag = tagObject.addDataTag( "property", rigFilename )
+			tag.setAttribute( "key", "component.rig" )
 		end
 		
 		if pOcclusion != null
