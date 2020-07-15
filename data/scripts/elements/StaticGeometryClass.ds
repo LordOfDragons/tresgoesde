@@ -5,25 +5,22 @@ pin Dragengine.Preloading
 pin Dragengine.Utils
 
 
-class CInstanceClass extends BehaviorElementClass
+/**
+ * Static geometry. This is CInstance with Moveable=0.
+ */
+class StaticGeometryClass extends BehaviorElementClass
 	protected var ECBehaviorComponent component
 	protected var ECBehaviorCollider collider
-	protected var ECBehaviorAttachToParent attachToParent
 	
-	public func new() this( "CInstance" )
+	public func new() this( "StaticGeometry" )
 	end
 	
 	public func new( String className ) super( className )
 		component = ECBehaviorComponent.new( this, null )
 		collider = ECBehaviorCollider.new( this, component )
-		attachToParent = ECBehaviorAttachToParent.new( this, collider, null )
 	end
 	
 	public func ElementClass duplicateNamed( String classname )
-		return CInstanceClass.new( classname )
-	end
-	
-	protected func Element createElement()
-		return CInstance.new( this )
+		return StaticGeometryClass.new( classname )
 	end
 end

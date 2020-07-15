@@ -104,6 +104,11 @@ class GameApp extends BaseGameApp
 		eclist.add( CPlayerSettingsClass.new() )
 		eclist.add( CSkyClass.new() )
 		
+		eclist.add( StaticGeometryClass.new() )
+		eclist.add( MoveableGeometryClass.new() )
+		eclist.add( GhostGeometryClass.new() )
+		eclist.add( CollisionGeometryClass.new() )
+		
 		getLoaders().getElementClass().addXmlElementClasses( eclist, "/content/models", true )
 	end
 	

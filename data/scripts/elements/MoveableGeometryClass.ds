@@ -1,0 +1,42 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Moeavable geometry. This is CInstance with Moveable=1.
+ */
+class MoveableGeometryClass extends BehaviorElementClass
+	protected var ECBehaviorComponent component
+	protected var ECBehaviorCollider collider
+	protected var ECBehaviorAttachToParent attachToParent
+	
+	public func new() this( "MoveableGeometry" )
+	end
+	
+	public func new( String className ) super( className )
+		component = ECBehaviorComponent.new( this, null )
+		
+		collider = ECBehaviorCollider.new( this, component )
+		
+		collider.getCollider().getPhysicsType().setEnumeration( CollisionResponse.dynamic )
+		
+		var LayerMask lmCategory = LayerMask.newWith( BaseGameApp.CollisionFilterBit.dynamic )
+		
+		var LayerMask lmFilter = LayerMask.new()
+		lmFilter.setBit( BaseGameApp.CollisionFilterBit.dynamic )
+		lmFilter.setBit( BaseGameApp.CollisionFilterBit.geometry )
+		lmFilter.setBit( BaseGameApp.CollisionFilterBit.actor )
+		lmFilter.setBit( BaseGameApp.CollisionFilterBit.particle )
+		
+		collider.getCollider().setCollisionFilter( CollisionFilter.new( lmCategory, lmFilter ) )
+		
+		attachToParent = ECBehaviorAttachToParent.new( this, collider, null )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return MoveableGeometryClass.new( classname )
+	end
+end

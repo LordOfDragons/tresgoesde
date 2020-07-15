@@ -6,7 +6,7 @@ pin Dragengine.Utils
 
 
 
-class CInstance extends SimpleElement
+class CInstance extends BehaviorElement
 	public func new( CInstanceClass eclass ) super( eclass )
 	end
 	

@@ -211,6 +211,15 @@ class ExportInstance
 				exporter.addSkin( pModel )
 			end
 			return
+			
+		elif pClass.equals( "CollisionGeometry" )
+			if not pProperties.getPropertyBoolFor( "Tangible", false )
+				return // uesless
+			end
+		end
+		
+		if not pIsVisible
+			return
 		end
 		
 		var EasyXMLElement tag, tagObject = world.getTagWorld().addTag( "object" )
@@ -245,19 +254,21 @@ class ExportInstance
 		tag.setAttribute( "key", "tresId" )
 		
 		if pModel != null
-			tag = tagObject.addDataTag( "property", \
-				( exporter.getPathModelDir() + ( pModel.getName().getName() + ".demodel" ) ).getPath() )
-			tag.setAttribute( "key", "component.model" )
-			
-			if pZeroInstance == null
-				exporter.addModel( pModel )
-			end
-			
-			if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
+			if not pClass.equals( "CollisionGeometry" )
 				tag = tagObject.addDataTag( "property", \
-					( exporter.getPathSkinDir() + ( pModel.getName().getName() + ".deskin" ) ).getPath() )
-				tag.setAttribute( "key", "component.skin" )
-				exporter.addSkin( pModel )
+					( exporter.getPathModelDir() + ( pModel.getName().getName() + ".demodel" ) ).getPath() )
+				tag.setAttribute( "key", "component.model" )
+				
+				if pZeroInstance == null
+					exporter.addModel( pModel )
+				end
+				
+				if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
+					tag = tagObject.addDataTag( "property", \
+						( exporter.getPathSkinDir() + ( pModel.getName().getName() + ".deskin" ) ).getPath() )
+					tag.setAttribute( "key", "component.skin" )
+					exporter.addSkin( pModel )
+				end
 			end
 			
 			exportPhysics( exporter, tagObject )
@@ -270,6 +281,7 @@ class ExportInstance
 			exporter.addOcclusionMesh( pOcclusion )
 		end
 		
+		/*
 		if pModel != null and pModel.getGeometry() != null
 			var GroffGeometry geometry = pModel.getGeometry()
 			
@@ -281,6 +293,7 @@ class ExportInstance
 			tag = tagObject.addDataTag( "property", "" + bbmax.getX() + " " + bbmax.getY() + " " + bbmax.getZ() )
 			tag.setAttribute( "key", "boundingBoxMax" )
 		end
+		*/
 		
 		pProperties.getPropertyKeys().forEach( block String key
 			tag = tagObject.addDataTag( "property", pProperties.getPropertyValueFor( key, null ) )
@@ -296,16 +309,19 @@ class ExportInstance
 		var bool frozen = pProperties.getPropertyBoolFor( "Frozen", false )
 		var EasyXMLElement tag
 		
-		// ADDITION: create two classes CInstanceStatic and CInstanceDynamic. this way the
-		//           physics properties are handled properly
-		
 		if tangible
 			var String rigFilename = ( exporter.getPathRigDir() + ( pModel.getName().getName() + ".derig" ) ).getPath()
 			if pZeroInstance == null
 				exportRig( exporter, rigFilename )
 			end
 			tag = tagObject.addDataTag( "property", rigFilename )
-			tag.setAttribute( "key", "component.rig" )
+			
+			if pClass.equals( "CollisionGeometry" )
+				tag.setAttribute( "key", "collider.rig" )
+				
+			else
+				tag.setAttribute( "key", "component.rig" )
+			end
 			
 			if moveable
 				if mass < -0.5 // not set
@@ -389,7 +405,11 @@ class ExportInstance
 			if property != null
 				pIsVisible = property.getDataBool()
 			end
+			
+			addProperties( groff, valueTable, "" )
 		end
+		
+		pProperties.removePropertyWithKey( "Visible" )
 		
 		pIsPhysics = pGroffInstance.getName().getName().getAt( 0 ) == '$'
 		if pIsPhysics
@@ -403,8 +423,24 @@ class ExportInstance
 		pClass = pTpClass
 		pModel = pGroffInstance.getModel()
 		
-		if valueTable.getType() == GroffValue.Type.group
-			addProperties( groff, valueTable, "" )
+		if pClass.equals( "CInstance" )
+			if pIsVisible
+				if pProperties.getPropertyBoolFor( "Tangible", false )
+					if pProperties.getPropertyBoolFor( "Moveable", false )
+						pClass = "MoveableGeometry"
+						
+					else
+						pClass = "StaticGeometry"
+					end
+					
+				else
+					pClass = "GhostGeometry"
+				end
+				
+			else
+				pClass = "CollisionGeometry"
+				pIsVisible = true
+			end
 		end
 		
 		if model != null and model.getMapping() != null and model.getMapping().getMaterial() != null

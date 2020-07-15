@@ -1,0 +1,24 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Moeavable geometry. This is CInstance with Tangible=0.
+ */
+class GhostGeometryClass extends BehaviorElementClass
+	protected var ECBehaviorComponent component
+	
+	public func new() this( "GhostGeometry" )
+	end
+	
+	public func new( String className ) super( className )
+		component = ECBehaviorComponent.new( this, null )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return GhostGeometryClass.new( classname )
+	end
+end
