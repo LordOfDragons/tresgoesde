@@ -112,9 +112,9 @@ class ExportInstance
 	
 	
 	public func void prepare( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
+		findZeroInstance( groff )
 		identify( groff, propertyClass, propertyVisible )
 		processProperties( groff )
-		findZeroInstance( groff )
 		findPhysicsInstances( groff )
 	end
 	
@@ -127,15 +127,20 @@ class ExportInstance
 	end
 	
 	private func void findPhysicsInstances( Groff groff )
-		if pZeroInstance != null or not pProperties.getPropertyValueFor( "Type", "Box" ).equals( "Compound" )
-			return
+		var Array removeKeys = Array.newWith( "Type" )
+		
+		if pZeroInstance == null and pProperties.getPropertyValueFor( "Type", "Box" ).equals( "Compound" )
+			var Array keys = pProperties.getPropertyKeys()
+			keys.forEach( block String key
+				if key.getLength() == 7 and key.substring( 0, 5 ).equals( "Model" )
+					pPhysicsInstances.add( groff.getInstanceByName( pProperties.getPropertyValueFor( key, null ) ) )
+					removeKeys.add( key )
+				end
+			end )
 		end
 		
-		var Array keys = pProperties.getPropertyKeys()
-		keys.forEach( block String key
-			if key.getLength() == 7 and key.substring( 0, 5 ).equals( "Model" )
-				pPhysicsInstances.add( groff.getInstanceByName( pProperties.getPropertyValueFor( key, null ) ) )
-			end
+		removeKeys.forEach( block String each
+			pProperties.removePropertyWithKey( each )
 		end )
 	end
 	
@@ -168,10 +173,8 @@ class ExportInstance
 		if pPhysicsInstances.getCount() > 0
 			position = Exporter.transformPosition( pGroffInstance.getPosition() )
 			rotation = Exporter.transformRotation( pGroffInstance.getRotation() )
-			scale = pGroffInstance.getScale()
 			
-			invMatrix = DMatrix.newSRT( DVector.new( scale, scale, scale ), \
-				DVector.new( rotation ), position ).getInverse()
+			invMatrix = DMatrix.newRT( DVector.new( rotation ), position ).getInverse()
 			
 			pPhysicsInstances.forEach( block GroffInstance each
 				position = Exporter.transformPosition( each.getPosition() )
@@ -192,9 +195,9 @@ class ExportInstance
 			
 		else
 			geometry = pModel.getGeometry()
+			minExtend = Exporter.transformPosition( geometry.getBoundingBoxMin() )
+			maxExtend = Exporter.transformPosition( geometry.getBoundingBoxMax() )
 			scale = pGroffInstance.getScale() * 0.5
-			minExtend = geometry.getBoundingBoxMin()
-			maxExtend = geometry.getBoundingBoxMax()
 			builder.shapes.addBox( ( minExtend + maxExtend ) * scale, ( maxExtend - minExtend ) * scale )
 			builder.properties.add( "" )
 		end
@@ -204,6 +207,9 @@ class ExportInstance
 	
 	public func void export( Exporter exporter, ExportWorld world )
 		if pClass.equals( "TerrainPlacement" )
+			if pModel != null and pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
+				exporter.addSkin( pModel )
+			end
 			return
 		end
 		
@@ -212,10 +218,6 @@ class ExportInstance
 		
 		var DVector position = Exporter.transformPosition( pGroffInstance.getPosition() )
 		var Vector rotation = Exporter.transformRotation( pGroffInstance.getRotation() )
-		var float scale = pGroffInstance.getScale()
-		if pModel != null and pModel.getBaseScale() != null
-			scale /= pModel.getBaseScale().value()
-		end
 		
 		tagObject.addDataTag( "classname", pClass )
 		
@@ -229,10 +231,15 @@ class ExportInstance
 		tag.setAttribute( "y", rotation.getY() )
 		tag.setAttribute( "z", rotation.getZ() )
 		
-		tag = tagObject.addTag( "scaling" )
-		tag.setAttribute( "x", scale )
-		tag.setAttribute( "y", scale )
-		tag.setAttribute( "z", scale )
+		if pZeroInstance != null
+			var float scale = pGroffInstance.getScale() / pZeroInstance.getScale()
+			if DEMath.fabs( scale - 1.0 ) > 0.001
+				tag = tagObject.addTag( "scaling" )
+				tag.setAttribute( "x", scale )
+				tag.setAttribute( "y", scale )
+				tag.setAttribute( "z", scale )
+			end
+		end
 		
 		tag = tagObject.addDataTag( "property", pGroffInstance.getName().getName() )
 		tag.setAttribute( "key", "tresId" )
@@ -241,7 +248,10 @@ class ExportInstance
 			tag = tagObject.addDataTag( "property", \
 				( exporter.getPathModelDir() + ( pModel.getName().getName() + ".demodel" ) ).getPath() )
 			tag.setAttribute( "key", "component.model" )
-			exporter.addModel( pModel )
+			
+			if pZeroInstance == null
+				exporter.addModel( pModel )
+			end
 			
 			if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
 				tag = tagObject.addDataTag( "property", \
@@ -250,14 +260,7 @@ class ExportInstance
 				exporter.addSkin( pModel )
 			end
 			
-			var String rigFilename = ( exporter.getPathRigDir() + ( pModel.getName().getName() + ".derig" ) ).getPath()
-			
-			if pZeroInstance == null
-				exportRig( exporter, rigFilename )
-			end
-			
-			tag = tagObject.addDataTag( "property", rigFilename )
-			tag.setAttribute( "key", "component.rig" )
+			exportPhysics( exporter, tagObject )
 		end
 		
 		if pOcclusion != null
@@ -285,6 +288,53 @@ class ExportInstance
 		end )
 	end
 	
+	private func void exportPhysics( Exporter exporter, EasyXMLElement tagObject )
+		var float density = pProperties.getPropertyFloatFor( "Density", 0.1 )
+		var float mass = pProperties.getPropertyFloatFor( "Mass", -1.0 )
+		var bool moveable = pProperties.getPropertyBoolFor( "Moveable", false )
+		var bool tangible = pProperties.getPropertyBoolFor( "Tangible", false )
+		var bool frozen = pProperties.getPropertyBoolFor( "Frozen", false )
+		var EasyXMLElement tag
+		
+		// ADDITION: create two classes CInstanceStatic and CInstanceDynamic. this way the
+		//           physics properties are handled properly
+		
+		if tangible
+			var String rigFilename = ( exporter.getPathRigDir() + ( pModel.getName().getName() + ".derig" ) ).getPath()
+			if pZeroInstance == null
+				exportRig( exporter, rigFilename )
+			end
+			tag = tagObject.addDataTag( "property", rigFilename )
+			tag.setAttribute( "key", "component.rig" )
+			
+			if moveable
+				if mass < -0.5 // not set
+					var GroffGeometry geometry = pModel.getGeometry()
+					var Vector size = ( geometry.getBoundingBoxMax() \
+						- geometry.getBoundingBoxMin() ) * pGroffInstance.getScale()
+					mass = size.getX() * size.getY() * size.getZ() * density
+				end
+				
+				tag = tagObject.addDataTag( "property", mass )
+				tag.setAttribute( "key", "collider.weight" )
+				
+				if not frozen
+					tag = tagObject.addDataTag( "property", "dynamic" )
+					tag.setAttribute( "key", "collider.physicsType" )
+				end
+			end
+			
+		else
+			tag = tagObject.addDataTag( "property", false )
+			tag.setAttribute( "key", "collider.enabled" )
+		end
+		
+		pProperties.removePropertyWithKey( "Density" )
+		pProperties.removePropertyWithKey( "Mass" )
+		pProperties.removePropertyWithKey( "Moveable" )
+		pProperties.removePropertyWithKey( "Tangible" )
+		pProperties.removePropertyWithKey( "Frozen" )
+	end
 	
 	private func void addProperties( Groff groff, GroffValue table, String prefix )
 		table.forEachProperty( block GroffValue data
@@ -321,8 +371,9 @@ class ExportInstance
 	
 	private func void identify( Groff groff, GroffValueName propertyClass, GroffValueName propertyVisible )
 		var GroffModel model = pGroffInstance.getModel()
-		if model != null and model.getBaseScale() != null
-			model.setBaseScale( Float.new( pGroffInstance.getScale() ) )
+		
+		if pZeroInstance == null and model != null
+			model.setBaseScale( pGroffInstance.getScale() )
 		end
 		
 		var GroffValue valueTable = pGroffInstance.getValueTable()

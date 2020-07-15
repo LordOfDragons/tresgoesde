@@ -125,7 +125,7 @@ class ExportModel
 	end
 	
 	private func void writeLodVertices( FileWriter writer )
-		var float scale = pModel.getBaseScale() != null if pModel.getBaseScale().value() else 1
+		var float scale = pModel.getBaseScale()
 		
 		pGeometry.forEachVertex( block Vector vertex
 			writer.writeUShort( 0 ) // weights index

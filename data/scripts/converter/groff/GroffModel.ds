@@ -30,11 +30,12 @@ class GroffModel
 	private var GroffName pName
 	private var GroffGeometry pGeometry
 	private var GroffMapping pMapping
-	private var Float pBaseScale
+	private var float pBaseScale
 	
 	
 	public func new()
 		pId = 0
+		pBaseScale = 1
 	end
 	
 	
@@ -70,11 +71,11 @@ class GroffModel
 		pMapping = mapping
 	end
 	
-	public func Float getBaseScale()
+	public func float getBaseScale()
 		return pBaseScale
 	end
 	
-	public func void setBaseScale( Float baseScale )
+	public func void setBaseScale( float baseScale )
 		pBaseScale = baseScale
 	end
 end
