@@ -9,19 +9,22 @@ pin Dragengine.Utils
  * Moeavable geometry. This is CInstance with Moveable=1.
  */
 class MoveableGeometryClass extends BehaviorElementClass
-	protected var ECBehaviorComponent component
-	protected var ECBehaviorCollider collider
-	protected var ECBehaviorAttachToParent attachToParent
+	protected var ECBehaviorComponent pComponent
+	protected var ECBehaviorCollider pCollider
+	protected var ECBFreezable pFreezable
+	protected var ECBehaviorAttachToParent pAttachToParent
+	protected var ECBehaviorAnchorElement pAnchorElement
+	
 	
 	public func new() this( "MoveableGeometry" )
 	end
 	
 	public func new( String className ) super( className )
-		component = ECBehaviorComponent.new( this, null )
+		pComponent = ECBehaviorComponent.new( this, null )
 		
-		collider = ECBehaviorCollider.new( this, component )
+		pCollider = ECBehaviorCollider.new( this, pComponent )
 		
-		collider.getCollider().getPhysicsType().setEnumeration( CollisionResponse.dynamic )
+		pCollider.getCollider().getPhysicsType().setEnumeration( CollisionResponse.dynamic )
 		
 		var LayerMask lmCategory = LayerMask.newWith( BaseGameApp.CollisionFilterBit.dynamic )
 		
@@ -31,9 +34,11 @@ class MoveableGeometryClass extends BehaviorElementClass
 		lmFilter.setBit( BaseGameApp.CollisionFilterBit.actor )
 		lmFilter.setBit( BaseGameApp.CollisionFilterBit.particle )
 		
-		collider.getCollider().setCollisionFilter( CollisionFilter.new( lmCategory, lmFilter ) )
+		pCollider.getCollider().setCollisionFilter( CollisionFilter.new( lmCategory, lmFilter ) )
 		
-		attachToParent = ECBehaviorAttachToParent.new( this, collider, null )
+		pFreezable = ECBFreezable.new( this, pCollider )
+		pAttachToParent = ECBehaviorAttachToParent.new( this, pCollider, null )
+		pAnchorElement = ECBehaviorAnchorElement.new( this )
 	end
 	
 	public func ElementClass duplicateNamed( String classname )

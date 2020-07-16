@@ -1,0 +1,134 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Add support to elements to be frozen/unfrozen. Be default element is not frozen.
+ * Using element stub property element can be set frozen.
+ * 
+ * This behavior is only allowed on ECBehaviorCollider using CollisionResponse.dynamic .
+ * 
+ * Supported properties:
+ * - frozen
+ */
+class ECBFreezable extends DefaultECBehavior
+	class Instance extends DefaultECBehaviorInstance
+		protected var ECBFreezable pECBehavior
+		protected var ECBehaviorCollider.Instance pCollider
+		protected var bool pFrozen
+		
+		
+		public func new( ECBFreezable ecbehavior, BehaviorElement element ) super( element )
+			pECBehavior = ecbehavior
+			pCollider = ecbehavior.getCollider().instance( element )
+		end
+		
+		public func void dispose()
+			pCollider = null
+			super.dispose()
+		end
+		
+		
+		public func void init( StubElement stub )
+			setFrozen( pECBehavior.getFrozen().getValue( stub ) )
+		end
+		
+		
+		public func bool getFrozen()
+			return pFrozen
+		end
+		
+		public func void setFrozen( bool frozen )
+			if frozen == pFrozen
+				return
+			end
+			
+			pFrozen = frozen
+			
+			if frozen
+				pCollider.getCollider().setResponseType( CollisionResponse.none )
+				
+			else
+				pCollider.getCollider().setResponseType( CollisionResponse.dynamic )
+			end
+		end
+	end
+	
+	
+	protected var ECBehaviorCollider pCollider
+	protected var ECPBoolean pFrozen
+	
+	
+	public func new( BehaviorElementClass eclass, ECBehaviorCollider collider ) super( eclass )
+		if getBehaviorIn( eclass ) != null
+			throw BEMultipleInstanceException.new( eclass, this )
+		end
+		if collider == null
+			throw ENullPointer.new( "collider" )
+		end
+		
+		pCollider = collider
+		
+		pFrozen = ECPBoolean.new( "frozen", false )
+		eclass.addProperty( pFrozen )
+		
+		eclass.addBehavior( this )
+	end
+	
+	public func void dispose()
+		pCollider = null
+		super.dispose()
+	end
+	
+	
+	public func ECBehaviorCollider getCollider()
+		return pCollider
+	end
+	
+	public func ECPBoolean getFrozen()
+		return pFrozen
+	end
+	
+	
+	
+	static public func ECBFreezable getBehaviorIn( BehaviorElementClass eclass )
+		return eclass.findBehavior( block ECBehavior each
+			return each castable ECBFreezable
+		end ) cast ECBFreezable
+	end
+	
+	static public func Instance getInstanceIn( BehaviorElement element )
+		return element.findInstance( block ECBehaviorInstance each
+			return each castable Instance
+		end ) cast Instance
+	end
+	
+	
+	public func ECBehaviorInstance createInstance( BehaviorElement element )
+		return Instance.new( this, element )
+	end
+end

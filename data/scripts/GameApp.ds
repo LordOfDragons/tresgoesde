@@ -108,6 +108,7 @@ class GameApp extends BaseGameApp
 		eclist.add( MoveableGeometryClass.new() )
 		eclist.add( GhostGeometryClass.new() )
 		eclist.add( CollisionGeometryClass.new() )
+		eclist.add( LocationTriggerClass.new() )
 		
 		getLoaders().getElementClass().addXmlElementClasses( eclist, "/content/models", true )
 	end

@@ -9,13 +9,13 @@ pin Dragengine.Utils
  * Moeavable geometry. This is CInstance with Tangible=0.
  */
 class GhostGeometryClass extends BehaviorElementClass
-	protected var ECBehaviorComponent component
+	protected var ECBehaviorComponent pComponent
 	
 	public func new() this( "GhostGeometry" )
 	end
 	
 	public func new( String className ) super( className )
-		component = ECBehaviorComponent.new( this, null )
+		pComponent = ECBehaviorComponent.new( this, null )
 	end
 	
 	public func ElementClass duplicateNamed( String classname )

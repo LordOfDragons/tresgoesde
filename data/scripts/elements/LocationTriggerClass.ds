@@ -1,0 +1,24 @@
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Location trigger. Matches CLocationTrigger in Trespasser.
+ */
+class LocationTriggerClass extends BehaviorElementClass
+	protected var ECBehaviorTouchSensor pTouchSensor
+	
+	public func new() this( "LocationTrigger" )
+	end
+	
+	public func new( String className ) super( className )
+		pTouchSensor = ECBehaviorTouchSensor.new( this, null )
+	end
+	
+	public func ElementClass duplicateNamed( String classname )
+		return LocationTriggerClass.new( classname )
+	end
+end

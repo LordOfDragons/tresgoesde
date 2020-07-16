@@ -9,13 +9,13 @@ pin Dragengine.Utils
  * Collision geometry. This is CInstance with Visible=0.
  */
 class CollisionGeometryClass extends BehaviorElementClass
-	protected var ECBehaviorCollider collider
+	protected var ECBehaviorCollider pCollider
 	
 	public func new() this( "CollisionGeometry" )
 	end
 	
 	public func new( String className ) super( className )
-		collider = ECBehaviorCollider.new( this, null )
+		pCollider = ECBehaviorCollider.new( this, null )
 	end
 	
 	public func ElementClass duplicateNamed( String classname )

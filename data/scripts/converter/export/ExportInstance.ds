@@ -129,11 +129,13 @@ class ExportInstance
 	private func void findPhysicsInstances( Groff groff )
 		var Array removeKeys = Array.newWith( "Type" )
 		
-		if pZeroInstance == null and pProperties.getPropertyValueFor( "Type", "Box" ).equals( "Compound" )
+		if pProperties.getPropertyValueFor( "Type", "Box" ).equals( "Compound" )
 			var Array keys = pProperties.getPropertyKeys()
 			keys.forEach( block String key
 				if key.getLength() == 7 and key.substring( 0, 5 ).equals( "Model" )
-					pPhysicsInstances.add( groff.getInstanceByName( pProperties.getPropertyValueFor( key, null ) ) )
+					if pZeroInstance == null
+						pPhysicsInstances.add( groff.getInstanceByName( pProperties.getPropertyValueFor( key, null ) ) )
+					end
 					removeKeys.add( key )
 				end
 			end )
@@ -240,45 +242,68 @@ class ExportInstance
 		tag.setAttribute( "y", rotation.getY() )
 		tag.setAttribute( "z", rotation.getZ() )
 		
-		if pZeroInstance != null
-			var float scale = pGroffInstance.getScale() / pZeroInstance.getScale()
-			if DEMath.fabs( scale - 1.0 ) > 0.001
-				tag = tagObject.addTag( "scaling" )
-				tag.setAttribute( "x", scale )
-				tag.setAttribute( "y", scale )
-				tag.setAttribute( "z", scale )
+		if pIsTrigger
+			var ShapeList shapeList = ShapeList.new()
+			var Vector minExtend = Exporter.transformPosition( \
+				pModel.getGeometry().getBoundingBoxMin() ) * pGroffInstance.getScale()
+			var Vector maxExtend = Exporter.transformPosition( \
+				pModel.getGeometry().getBoundingBoxMax() ) * pGroffInstance.getScale()
+			var Vector center = ( minExtend + maxExtend ) * 0.5
+			
+			if pProperties.getPropertyIntFor( "BoundVol", 0 ) == 0
+				var Vector extend = ( minExtend - center ).absolute().largest( ( maxExtend - center ).absolute() )
+				shapeList.addSphere( center, DEMath.max( DEMath.max( extend.getX(), extend.getY() ), extend.getZ() ) )
+				
+			else
+				shapeList.addBox( center, ( maxExtend - minExtend ) * 0.5 )
 			end
-		end
-		
-		tag = tagObject.addDataTag( "property", pGroffInstance.getName().getName() )
-		tag.setAttribute( "key", "tresId" )
-		
-		if pModel != null
-			if not pClass.equals( "CollisionGeometry" )
-				tag = tagObject.addDataTag( "property", \
-					( exporter.getPathModelDir() + ( pModel.getName().getName() + ".demodel" ) ).getPath() )
-				tag.setAttribute( "key", "component.model" )
-				
-				if pZeroInstance == null
-					exporter.addModel( pModel )
-				end
-				
-				if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
-					tag = tagObject.addDataTag( "property", \
-						( exporter.getPathSkinDir() + ( pModel.getName().getName() + ".deskin" ) ).getPath() )
-					tag.setAttribute( "key", "component.skin" )
-					exporter.addSkin( pModel )
+			
+			tag = tagObject.addDataTag( "property", exporter.getCodecPropertyString().encodeShapeList( shapeList ) )
+			tag.setAttribute( "key", "touchSensor.shape" )
+			
+		else
+			if pZeroInstance != null
+				var float scale = pGroffInstance.getScale() / pZeroInstance.getScale()
+				if DEMath.fabs( scale - 1.0 ) > 0.001
+					tag = tagObject.addTag( "scaling" )
+					tag.setAttribute( "x", scale )
+					tag.setAttribute( "y", scale )
+					tag.setAttribute( "z", scale )
 				end
 			end
 			
-			exportPhysics( exporter, tagObject )
-		end
-		
-		if pOcclusion != null
-			tag = tagObject.addDataTag( "property", \
-				( exporter.getPathOcclusionMeshDir() + ( pOcclusion.getName().getName() + ".deoccmesh" ) ).getPath() )
-			tag.setAttribute( "key", "component.occlusionMesh" )
-			exporter.addOcclusionMesh( pOcclusion )
+			if pClass.equals( "MoveableGeometry" )
+				tag = tagObject.addDataTag( "property", pGroffInstance.getName().getName() )
+				tag.setAttribute( "key", "anchorID" )
+			end
+			
+			if pModel != null
+				if not pClass.equals( "CollisionGeometry" )
+					tag = tagObject.addDataTag( "property", \
+						( exporter.getPathModelDir() + ( pModel.getName().getName() + ".demodel" ) ).getPath() )
+					tag.setAttribute( "key", "component.model" )
+					
+					if pZeroInstance == null
+						exporter.addModel( pModel )
+					end
+					
+					if pModel.getMapping() != null and pModel.getMapping().getMaterial() != null
+						tag = tagObject.addDataTag( "property", \
+							( exporter.getPathSkinDir() + ( pModel.getName().getName() + ".deskin" ) ).getPath() )
+						tag.setAttribute( "key", "component.skin" )
+						exporter.addSkin( pModel )
+					end
+				end
+				
+				exportPhysics( exporter, tagObject )
+			end
+			
+			if pOcclusion != null
+				tag = tagObject.addDataTag( "property", \
+					( exporter.getPathOcclusionMeshDir() + ( pOcclusion.getName().getName() + ".deoccmesh" ) ).getPath() )
+				tag.setAttribute( "key", "component.occlusionMesh" )
+				exporter.addOcclusionMesh( pOcclusion )
+			end
 		end
 		
 		/*
@@ -334,15 +359,11 @@ class ExportInstance
 				tag = tagObject.addDataTag( "property", mass )
 				tag.setAttribute( "key", "collider.weight" )
 				
-				if not frozen
-					tag = tagObject.addDataTag( "property", "dynamic" )
-					tag.setAttribute( "key", "collider.physicsType" )
+				if frozen
+					tag = tagObject.addDataTag( "property", true )
+					tag.setAttribute( "key", "frozen" )
 				end
 			end
-			
-		else
-			tag = tagObject.addDataTag( "property", false )
-			tag.setAttribute( "key", "collider.enabled" )
 		end
 		
 		pProperties.removePropertyWithKey( "Density" )
@@ -380,7 +401,7 @@ class ExportInstance
 				pProperties.setPropertyValueFor( prefix + name, string )
 				
 			case GroffValue.Type.group
-				addProperties( groff, data, prefix + name )
+				addProperties( groff, data, prefix + name + "." )
 			end
 		end )
 	end
@@ -423,24 +444,14 @@ class ExportInstance
 		pClass = pTpClass
 		pModel = pGroffInstance.getModel()
 		
-		if pClass.equals( "CInstance" )
-			if pIsVisible
-				if pProperties.getPropertyBoolFor( "Tangible", false )
-					if pProperties.getPropertyBoolFor( "Moveable", false )
-						pClass = "MoveableGeometry"
-						
-					else
-						pClass = "StaticGeometry"
-					end
-					
-				else
-					pClass = "GhostGeometry"
-				end
-				
-			else
-				pClass = "CollisionGeometry"
-				pIsVisible = true
+		if pIsTrigger
+			// TEMP TEMP TEMP
+			if pClass.equals( "CLocationTrigger" )
+			// TEMP TEMP TEMP
+			pClass = pTpClass.substring( 1 )
+			// TEMP TEMP TEMP
 			end
+			// TEMP TEMP TEMP
 		end
 		
 		if model != null and model.getMapping() != null and model.getMapping().getMaterial() != null
@@ -462,6 +473,34 @@ class ExportInstance
 	end
 	
 	private func void processProperties( Groff groff )
+		if pClass.equals( "CInstance" )
+			if pIsVisible
+				if pProperties.getPropertyBoolFor( "Tangible", false )
+					if pProperties.getPropertyBoolFor( "Moveable", false )
+						pClass = "MoveableGeometry"
+						
+					else
+						pClass = "StaticGeometry"
+					end
+					
+				else
+					pClass = "GhostGeometry"
+				end
+				
+			else
+				pClass = "CollisionGeometry"
+				pIsVisible = true
+				pProperties.removePropertyWithKey( "Shadow" )
+				pProperties.removePropertyWithKey( "Bumpmaps" )
+			end
+		end
+		
+		pProperties.removePropertyWithKey( "Merge" )
+		pProperties.removePropertyWithKey( "Split" )
+		pProperties.removePropertyWithKey( "Wrap" )
+		pProperties.removePropertyWithKey( "MipMap" )
+		pProperties.removePropertyWithKey( "Planted" ) // trees, not used
+		pProperties.removePropertyWithKey( "Height" ) // trees, not used
 	end
 	
 	

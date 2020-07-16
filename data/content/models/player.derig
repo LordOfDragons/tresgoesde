@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <rig>
-	<modelCollision>false</modelCollision>
-	<centralMassPoint x='0' y='0' z='0'/>
-	<sphere>
-		<position x='0' y='0.3' z='0'/>
+	<capsule>
+		<position x='0' y='0.9' z='0'/>
+		<rotation x='0' y='0' z='0'/>
+		<halfHeight>0.6</halfHeight>
 		<radius>0.3</radius>
-	</sphere>
+	</capsule>
 </rig>

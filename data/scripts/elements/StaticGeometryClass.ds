@@ -9,15 +9,15 @@ pin Dragengine.Utils
  * Static geometry. This is CInstance with Moveable=0.
  */
 class StaticGeometryClass extends BehaviorElementClass
-	protected var ECBehaviorComponent component
-	protected var ECBehaviorCollider collider
+	protected var ECBehaviorComponent pComponent
+	protected var ECBehaviorCollider pCollider
 	
 	public func new() this( "StaticGeometry" )
 	end
 	
 	public func new( String className ) super( className )
-		component = ECBehaviorComponent.new( this, null )
-		collider = ECBehaviorCollider.new( this, component )
+		pComponent = ECBehaviorComponent.new( this, null )
+		pCollider = ECBehaviorCollider.new( this, pComponent )
 	end
 	
 	public func ElementClass duplicateNamed( String classname )
