@@ -1,0 +1,338 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Add support to run TScript actions when triggered. Expects TScript flattened to stub
+ * properties in the form "actions.{groupName}.{valueName}" where groupName is for example
+ * Action00 and valueName is for example ActionType. These are straight TScript value names
+ * from the Groff Table.
+ * 
+ * This behavior provides the processing of actions only. For each individual action type
+ * an own behavior has to be used providing the detail handling for the action type.
+ * The behavior has to register during Instance construction time an ActionType
+ * implementation. During init(StubElement) this class will create all actions using
+ * the registered ActionType implementations so the actions are present to run later on.
+ * 
+ * To adds all supported action type behaviors use ECBActions.addActionTypes(BehaviorElementClass).
+ * 
+ * Property has no prefix as it uses TScript names directory.
+ */
+class ECBActions extends DefaultECBehavior
+	/**
+	 * Interface for runnable actions. Actions are send run() to start running them.
+	 * Then finished() is called to check if the action finished or not.
+	 */
+	interface Action
+		func void run( Instance instance )
+		func bool finished( Instance instance )
+	end
+	
+	/**
+	 * Interface for action types. Provides support to create Action instances using
+	 * a set of stub properties. Properties are found using a prefix.
+	 */
+	interface ActionType
+		func Action createAction( Instance instance, StubElement stub, String prefix )
+	end
+	
+	enum ProcessStyle
+		sequenceNoWait // Processes actions now, in order, no waiting for actions to finish
+		sequenceOne // Process one action per firing, wait for action to finish
+		randomOne // Like sequenceOne but process in random order
+		sequence // Process actions now, in order, once each, wait for actions to finish
+		random // Process actions now, random order, once each, wait for actions to finish
+		sequenceLoop // Like sequence but looping forever
+		randomLoop // Like random but looping forever
+	end
+	
+	enum State
+		ready // ready to be fired
+		runAction // run action
+		waitAction // wait for action to finish running
+		delay // waiting for next action delay to elapse
+	end
+	
+	
+	private class NullAction implements Action
+		public func new(): end
+		public func void run( Instance instance ): end
+		public func bool finished( Instance instance ): return true: end
+	end
+	
+	
+	class Instance extends DefaultECBehaviorInstance
+		protected var ECBActions pECBehavior
+		protected var Dictionary pActionTypes
+		protected var Array pActions
+		protected var ProcessStyle pProcessStyle
+		protected var float pSequenceDelayMin
+		protected var float pSequenceDelayMax
+		protected var Array pActionCycle
+		protected var State pState
+		protected var int pActionIndex
+		protected var float pDelay
+		
+		
+		public func new( ECBActions ecbehavior, BehaviorElement element ) super( element )
+			pECBehavior = ecbehavior
+			pActionTypes = Dictionary.new()
+			pActions = Array.new()
+			pState = State.ready
+		end
+		
+		public func void dispose()
+			pActionCycle = null
+			pActions = null
+			pActionTypes = null
+			super.dispose()
+		end
+		
+		
+		public func void init( StubElement stub )
+			pProcessStyle = pECBehavior.getProcessStyle().getEnumeration( stub ) cast ProcessStyle
+			pSequenceDelayMin = pECBehavior.getSequenceDelayMin().getValue( stub )
+			pSequenceDelayMax = pECBehavior.getSequenceDelayMax().getValue( stub )
+			initActions( stub )
+		end
+		
+		protected func void initActions( StubElement stub )
+			if stub.hasPropertyWithKey( "ActionType" )
+				// single action
+				initAction( stub, "" )
+				
+			else
+				// multiple actions
+				var int actionNumber = 0
+				var String prefix
+				
+				while true
+					if actionNumber < 10
+						prefix = "Action0" + actionNumber + "."
+						
+					else
+						prefix = "Action" + actionNumber + "."
+					end
+					
+					if stub.hasPropertyWithKey( prefix + "ActionType" )
+						initAction( stub, prefix )
+						
+					else
+						break
+					end
+				end
+			end
+		end
+		
+		protected func void initAction( StubElement stub, String prefix )
+			var int typeNumber = stub.getPropertyIntFor( prefix + "ActionType", -1 )
+			var ActionType actionType = getActionTypeAt( typeNumber )
+			
+			if actionType != null
+				pActions.add( actionType.createAction( this, stub, prefix ) )
+				
+			else
+				BaseGameApp.getApp().getConsole().addMessage("Unknown ActionType " + typeNumber)
+				pActions.add( NullAction.new() )
+			end
+		end
+		
+		
+		public func void addActionType( int type, ActionType actionType )
+			if actionType == null
+				throw ENullPointer.new( "actionType" )
+			end
+			pActionTypes.setAt( type, actionType )
+		end
+		
+		public func ActionType getActionTypeAt( int type )
+			return pActionTypes.getAt( type, null ) cast ActionType
+		end
+		
+		
+		/** Reset. */
+		public func void reset()
+			setRequiresThink( false )
+			pState = State.ready
+			pActionCycle = null
+		end
+		
+		/** Fire action. For use by triggers. */
+		public func void fire()
+			if pState == State.ready
+				setRequiresThink( true )
+				processActions( 0 )
+			end
+		end
+		
+		protected func void initActionCycle()
+			select pProcessStyle
+			case ProcessStyle.randomOne, ProcessStyle.random, ProcessStyle.randomLoop
+				var Array actions = Array.new( pActions )
+				pActionCycle = Array.new()
+				while actions.getCount() > 0
+					var int index = DEMath.random( 0, actions.getCount() - 1 )
+					pActionCycle.add( actions.getAt( index ) )
+					actions.removeFrom( index )
+				end
+				
+			else
+				pActionCycle = Array.new( pActions )
+			end
+			
+			pActionIndex = 0
+		end
+		
+		protected func void processActions( float elapsed )
+			while true
+				select pState
+				case State.runAction
+					if pActionCycle != null and pActionIndex == pActionCycle.getCount()
+						pActionCycle = null
+						
+						select pProcessStyle
+						case ProcessStyle.sequenceLoop, ProcessStyle.randomLoop
+						else
+							pState = State.ready
+							return
+						end
+					end
+					
+					if pActionCycle == null
+						initActionCycle()
+						
+						if pActionCycle.getCount() == 0
+							reset()
+							return
+						end
+					end
+					
+					( pActionCycle.getAt( pActionIndex ) cast Action ).run( this )
+					pState = State.waitAction
+					
+				case State.waitAction
+					if pProcessStyle != ProcessStyle.sequenceNoWait \
+					and not ( pActionCycle.getAt( pActionIndex ) cast Action ).finished( this )
+						return
+					end
+					
+					pActionIndex++
+					
+					select pProcessStyle
+					case ProcessStyle.sequenceOne, ProcessStyle.randomOne
+						pState = State.ready
+						return
+					end
+					
+					pDelay = DEMath.random( pSequenceDelayMin, pSequenceDelayMax )
+					pState = State.delay
+					
+				case State.delay
+					if elapsed < pDelay
+						pDelay -= elapsed
+						return
+					end
+					
+					elapsed -= pDelay
+					pState = State.runAction
+				end
+			end
+		end
+		
+		
+		public func void think( float elapsed )
+			if pState != State.ready
+				processActions( elapsed )
+			end
+		end
+	end
+	
+	
+	protected var ECPEnumeration pProcessStyle
+	protected var ECPFloat pSequenceDelayMin
+	protected var ECPFloat pSequenceDelayMax
+	
+	
+	public func new( BehaviorElementClass eclass ) super( eclass )
+		if getBehaviorIn( eclass ) != null
+			throw BEMultipleInstanceException.new( eclass, this )
+		end
+		
+		pProcessStyle = ECPEnumeration.new( "ProcessStyle", ProcessStyle.sequence )
+		pProcessStyle.getMapping().setAt( "0", ProcessStyle.sequenceNoWait )
+		pProcessStyle.getMapping().setAt( "1", ProcessStyle.sequenceOne )
+		pProcessStyle.getMapping().setAt( "2", ProcessStyle.randomOne )
+		pProcessStyle.getMapping().setAt( "3", ProcessStyle.sequence )
+		pProcessStyle.getMapping().setAt( "4", ProcessStyle.random )
+		pProcessStyle.getMapping().setAt( "5", ProcessStyle.sequenceLoop )
+		pProcessStyle.getMapping().setAt( "6", ProcessStyle.randomLoop )
+		eclass.addProperty( pProcessStyle )
+		
+		pSequenceDelayMin = ECPFloat.new( "SequenceDelayMin", 0, 0 )
+		eclass.addProperty( pSequenceDelayMin )
+		
+		pSequenceDelayMax = ECPFloat.new( "SequenceDelayMax", 0, 0 )
+		eclass.addProperty( pSequenceDelayMax )
+		
+		eclass.addBehavior( this )
+	end
+	
+	
+	public func ECPEnumeration getProcessStyle()
+		return pProcessStyle
+	end
+	
+	public func ECPFloat getSequenceDelayMin()
+		return pSequenceDelayMin
+	end
+	
+	public func ECPFloat getSequenceDelayMax()
+		return pSequenceDelayMax
+	end
+	
+	public func void addActionTypes( BehaviorElementClass eclass )
+		// TODO
+	end
+	
+	
+	static public func ECBActions getBehaviorIn( BehaviorElementClass eclass )
+		return eclass.findBehavior( block ECBehavior each
+			return each castable ECBActions
+		end ) cast ECBActions
+	end
+	
+	static public func Instance getInstanceIn( BehaviorElement element )
+		return element.findInstance( block ECBehaviorInstance each
+			return each castable Instance
+		end ) cast Instance
+	end
+	
+	
+	public func ECBehaviorInstance createInstance( BehaviorElement element )
+		return Instance.new( this, element )
+	end
+end

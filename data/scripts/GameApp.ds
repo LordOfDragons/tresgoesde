@@ -95,7 +95,6 @@ class GameApp extends BaseGameApp
 		eclist.add( CMuzzleFlashClass.new() )
 		eclist.add( CTerrainObjClass.new() )
 		eclist.add( COcclusionClass.new() )
-		eclist.add( CLocationTriggerClass.new() )
 		eclist.add( CStartTriggerClass.new() )
 		eclist.add( CTeleportClass.new() )
 		eclist.add( CParticlesClass.new() )
@@ -108,6 +107,7 @@ class GameApp extends BaseGameApp
 		eclist.add( MoveableGeometryClass.new() )
 		eclist.add( GhostGeometryClass.new() )
 		eclist.add( CollisionGeometryClass.new() )
+		
 		eclist.add( LocationTriggerClass.new() )
 		
 		getLoaders().getElementClass().addXmlElementClasses( eclist, "/content/models", true )

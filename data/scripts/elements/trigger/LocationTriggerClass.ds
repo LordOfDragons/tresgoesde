@@ -10,13 +10,17 @@ pin Dragengine.Utils
  */
 class LocationTriggerClass extends BehaviorElementClass
 	protected var ECBehaviorTouchSensor pTouchSensor
+	protected var ECBActions pActions
+	
 	
 	public func new() this( "LocationTrigger" )
 	end
 	
 	public func new( String className ) super( className )
 		pTouchSensor = ECBehaviorTouchSensor.new( this, null )
+		pActions = ECBActions.new( this )
 	end
+	
 	
 	public func ElementClass duplicateNamed( String classname )
 		return LocationTriggerClass.new( classname )
