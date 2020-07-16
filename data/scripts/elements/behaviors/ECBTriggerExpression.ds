@@ -1,0 +1,261 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+pin Dragengine.TriggerSystem
+
+
+/**
+ * Extend ECBehaviorTriggered with support for evaluating TScript trigger expression.
+ * 
+ * TScript trigger expressions have the additional operators "^" and "=" which Drag[en]gine
+ * does not use. To achieve this in an easy way we use a subclasses TSTriggerExpressionParser
+ * with subclassed TriggerExpressionComponent.
+ * 
+ * Furthermore the trigger property name is changed to "FireExpression".
+ */
+class ECBTriggerExpression extends ECBehaviorTriggered
+	/** Enhanced trigger expression parser. */
+	class TresTEParser extends TSTriggerExpressionParser
+		public func new()
+		end
+		
+		public func TSTriggerExpression stringToExpression( String string )
+			var TSTriggerExpression expression = TSTriggerExpression.new()
+			expression.setRootComponent( parseComponent( ParserState.new( string ), false ) )
+			return expression
+		end
+		
+		public func TresTEComponent parseComponent( ParserState state, bool onlyOne )
+			var TresTEComponent component = TresTEComponent.new()
+			
+			// first child
+			var bool running = true
+			while running and state.hasMoreCharacters() 
+				select state.getNextCharacter()
+				case ' ', '\t'
+				case '!'
+					component.setNegate( not component.getNegate() )
+					
+				case '@'
+					component.setCurState( true )
+					
+				case '('
+					component.addChild( parseComponent( state, false ) )
+					if state.getNextCharacter() != ')'
+						throw EInvalidParam.new()
+					end
+					return component
+					
+				case ')', '&', '|', '^', '='
+					throw EInvalidParam.new()
+					
+				else
+					state.adjustPosition( -1 )
+					running = false
+				end
+			end
+			
+			var String targetName = ""
+			running = true
+			while running and state.hasMoreCharacters()
+				var byte next = state.getNextCharacter()
+				
+				select next
+				case ' ', '\t', '!', '@', ')', '&', '|', '^', '='
+					state.adjustPosition( -1 )
+					running = false
+					
+				else
+					targetName = targetName + next
+				end
+			end
+			component.setTargetName( StringID.new( targetName ) )
+			
+			// operator with component or end of group
+			while state.hasMoreCharacters()
+				var byte next = state.getNextCharacter()
+				
+				select next
+				case ' ', '\t'
+				case ')'
+					state.adjustPosition( -1 )
+					return component
+					
+				case '&', '|', '^', '='
+					if onlyOne
+						state.adjustPosition( -1 )
+						return component
+					end
+					
+					var TresTEComponent firstChild = component
+					component = TresTEComponent.new()
+					
+					select next
+					case '|'
+						component.setChildrenOr( true )
+						
+					case '^'
+						component.setChildrenXor( true )
+						
+					case '='
+						component.setChildrenEquals( true )
+					end
+					
+					component.addChild( firstChild )
+					component.addChild( parseComponent( state, true ) )
+					
+				else
+					throw EInvalidParam.new()
+				end
+			end
+			
+			return component
+		end
+		
+		public func String expressionComponentToString( TSTriggerExpressionComponent componentDE, bool grouping )
+			var TresTEComponent component = componentDE cast TresTEComponent
+			var StringID targetName = component.getTargetName()
+			var String string = ""
+			
+			if component.getNegate()
+				string = string + '!'
+				grouping = true
+			end
+			if component.getCurState()
+				string = string + '@'
+				grouping = true
+			end
+			
+			if targetName == null
+				var int i, count = component.getChildCount()
+				if grouping
+					string = string + '('
+				end
+				
+				var byte operator = '&'
+				if component.getChildrenXor()
+					operator = '^'
+					
+				elif component.getChildrenEquals()
+					operator = '='
+					
+				elif component.getChildrenOr()
+					operator = '|'
+				end
+				
+				for i = 0 to count
+					if i > 0
+						string = string + operator
+					end
+					string = string + expressionComponentToString( component.getChildAt( i ), true )
+				end
+				
+				if grouping
+					string = string + ')'
+				end
+				
+			else
+				string = string + targetName
+			end
+			
+			return string
+		end
+	end
+	
+	/** Enhanced trigger expression component. */
+	class TresTEComponent extends TSTriggerExpressionComponent
+		protected var bool pChildrenXor
+		protected var bool pChildrenEquals
+		
+		public func new()
+		end
+		
+		public func bool getChildrenXor()
+			return pChildrenXor
+		end
+		
+		public func void setChildrenXor( bool childrenXor )
+			pChildrenXor = childrenXor
+		end
+		
+		public func bool getChildrenEquals()
+			return pChildrenEquals
+		end
+		
+		public func void setChildrenEquals( bool childrenEquals )
+			pChildrenEquals = childrenEquals
+		end
+		
+		public func bool evaluate()
+			if getTarget() != null or getChildCount() < 2 or not ( pChildrenXor or pChildrenEquals )
+				return super.evaluate()
+			end
+			
+			var bool result = getChildAt( 0 ).evaluate()
+			var int i, count = getChildCount()
+			
+			if pChildrenXor
+				for i = 1 to count
+					result ^= getChildAt( i ).evaluate()
+				end
+				
+			else
+				for i = 1 to count
+					result = result == getChildAt( i ).evaluate()
+				end
+			end
+			
+			return result ^ getNegate()
+		end
+	end
+	
+	
+	class Instance extends ECBehaviorTriggered.Instance
+		public func new( ECBTriggerExpression ecbehavior, BehaviorElement element ) super( ecbehavior, element )
+		end
+		
+		public func void init( StubElement stub )
+			var String value = getECBehavior().getTrigger().getValue( stub )
+			if not value.empty()
+				setTriggerExpression( ECBTriggerExpression.parser.stringToExpression( value ) )
+				getECBehavior().createListeners( this )
+			end
+		end
+	end
+	
+	
+	static fixed public var TresTEParser parser = TresTEParser.new()
+	
+	
+	public func new( BehaviorElementClass eclass ) \
+	super( eclass, BaseGameApp.getApp().getTriggerTable(), "", "FireExpression" )
+	end
+	
+	
+	public func ECBehaviorInstance createInstance( BehaviorElement element )
+		return Instance.new( this, element )
+	end
+end

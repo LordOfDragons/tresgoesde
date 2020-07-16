@@ -40,7 +40,7 @@ pin Dragengine.Utils
  * 
  * To adds all supported action type behaviors use ECBActions.addActionTypes(BehaviorElementClass).
  * 
- * Property has no prefix as it uses TScript names directory.
+ * Property has no prefix as it uses TScript names directly.
  */
 class ECBActions extends DefaultECBehavior
 	/**
