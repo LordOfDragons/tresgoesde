@@ -9,82 +9,19 @@ pin Dragengine.Utils
  * Location trigger. Matches CLocationTrigger in Trespasser.
  */
 class LocationTriggerClass extends BehaviorElementClass
-	/** Evaluate trigger conditions. */
-	class EvaluateListener implements ECBehaviorTriggered.Listener, ECBehaviorTouchSensor.Listener
-		protected var ECBehaviorTriggered.Instance pTriggerExpression
-		protected var ECBehaviorTouchSensor.Instance pTouchSensor
-		
-		public func new( ECBehaviorTriggered.Instance triggerExpression, ECBehaviorTouchSensor.Instance touchSensor )
-			pTriggerExpression = triggerExpression
-			pTouchSensor = touchSensor
-		end
-		
-		public func void evaluate()
-			BaseGameApp.getApp().getConsole().addMessage("evaluate " + pTriggerExpression.getElement().getClass() \
-				+ ": " + pTriggerExpression.getState( true ) + " " + pTouchSensor.getTouchingElementCount() )
-		end
-		
-		public func void triggerExpressionTrue( ECBehaviorTriggered.Instance instance )
-			evaluate()
-		end
-		
-		public func void triggerExpressionFalse( ECBehaviorTriggered.Instance instance )
-			evaluate()
-		end
-		
-		public func void elementEntered( ECBehaviorTouchSensor.Instance instance, Element element )
-			BaseGameApp.getApp().getConsole().addMessage("entered " \
-				+ pTriggerExpression.getElement().getClass() + " " + element.getClass())
-			evaluate()
-		end
-		
-		public func void elementLeft( ECBehaviorTouchSensor.Instance instance, Element element )
-			BaseGameApp.getApp().getConsole().addMessage("left " \
-				+ pTriggerExpression.getElement().getClass() + " " + element.getClass())
-			evaluate()
-		end
-		
-		public func bool elementCanTouch( ECBehaviorTouchSensor.Instance instance, Element element )
-			return element.getClass().getClassname().equals( "Player" )
-		end
-	end
-	
-	class EvaluateFactory implements ECBehaviorTriggered.ListenerFactory, ECBehaviorTouchSensor.ListenerFactory
-		protected var ECBehaviorTriggered pTriggerExpression
-		protected var ECBehaviorTouchSensor pTouchSensor
-		
-		public func new( ECBehaviorTriggered triggerExpression, ECBehaviorTouchSensor touchSensor )
-			pTriggerExpression = triggerExpression
-			pTouchSensor = touchSensor
-		end
-		
-		public func ECBehaviorTriggered.Listener createListener( ECBehaviorTriggered.Instance instance )
-			var BehaviorElement element = instance.getElement()
-			return EvaluateListener.new( pTriggerExpression.instance( element ), pTouchSensor.instance( element ) )
-		end
-		
-		public func ECBehaviorTouchSensor.Listener createListener( ECBehaviorTouchSensor.Instance instance )
-			var BehaviorElement element = instance.getElement()
-			return EvaluateListener.new( pTriggerExpression.instance( element ), pTouchSensor.instance( element ) )
-		end
-	end
-	
-	
-	protected var ECBActions pActions
 	protected var ECBehaviorTouchSensor pTouchSensor
 	protected var ECBTriggerExpression pTriggerExpression
-	
+	protected var ECBActions pActions
+	protected var ECBLocationTrigger pLocationTrigger
 	
 	public func new() this( "LocationTrigger" )
 	end
 	
 	public func new( String className ) super( className )
-		pActions = ECBActions.new( this )
 		pTouchSensor = ECBehaviorTouchSensor.new( this, null )
 		pTriggerExpression = ECBTriggerExpression.new( this )
-		
-		pTriggerExpression.addListenerFactory( EvaluateFactory.new( pTriggerExpression, pTouchSensor ) )
-		pTouchSensor.addListenerFactory( EvaluateFactory.new( pTriggerExpression, pTouchSensor ) )
+		pActions = ECBActions.new( this )
+		pLocationTrigger = ECBLocationTrigger.new( this, pTouchSensor, pTriggerExpression, pActions )
 	end
 	
 	

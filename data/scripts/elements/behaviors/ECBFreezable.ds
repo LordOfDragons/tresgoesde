@@ -115,6 +115,10 @@ class ECBFreezable extends DefaultECBehavior
 	
 	
 	
+	public func Instance instance( BehaviorElement element )
+		return element.getInstanceAt( this.getInstanceIndex() ) cast Instance
+	end
+	
 	static public func ECBFreezable getBehaviorIn( BehaviorElementClass eclass )
 		return eclass.findBehavior( block ECBehavior each
 			return each castable ECBFreezable

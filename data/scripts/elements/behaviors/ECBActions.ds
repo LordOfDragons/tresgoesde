@@ -74,7 +74,7 @@ class ECBActions extends DefaultECBehavior
 		ready // ready to be fired
 		runAction // run action
 		waitAction // wait for action to finish running
-		delay // waiting for next action delay to elapse
+		delay // waiting for next action delay to elapsed
 	end
 	
 	
@@ -157,7 +157,7 @@ class ECBActions extends DefaultECBehavior
 				
 			else
 				BaseGameApp.getApp().getConsole().addMessage("Unknown ActionType " + typeNumber)
-				pActions.add( NullAction.new() )
+				//pActions.add( NullAction.new() )
 			end
 		end
 		
@@ -176,6 +176,7 @@ class ECBActions extends DefaultECBehavior
 		
 		/** Reset. */
 		public func void reset()
+			log("reset")
 			setRequiresThink( false )
 			pState = State.ready
 			pActionCycle = null
@@ -183,13 +184,16 @@ class ECBActions extends DefaultECBehavior
 		
 		/** Fire action. For use by triggers. */
 		public func void fire()
+			log("fire")
 			if pState == State.ready
 				setRequiresThink( true )
+				pState = State.runAction
 				processActions( 0 )
 			end
 		end
 		
 		protected func void initActionCycle()
+			log("initActionCycle")
 			select pProcessStyle
 			case ProcessStyle.randomOne, ProcessStyle.random, ProcessStyle.randomLoop
 				var Array actions = Array.new( pActions )
@@ -208,7 +212,9 @@ class ECBActions extends DefaultECBehavior
 		end
 		
 		protected func void processActions( float elapsed )
+			log("processActions " + elapsed)
 			while true
+				log("processActions.step")
 				select pState
 				case State.runAction
 					if pActionCycle != null and pActionIndex == pActionCycle.getCount()
@@ -218,6 +224,7 @@ class ECBActions extends DefaultECBehavior
 						case ProcessStyle.sequenceLoop, ProcessStyle.randomLoop
 						else
 							pState = State.ready
+							log("processActions.done")
 							return
 						end
 					end
@@ -227,6 +234,7 @@ class ECBActions extends DefaultECBehavior
 						
 						if pActionCycle.getCount() == 0
 							reset()
+							log("processActions.done")
 							return
 						end
 					end
@@ -237,6 +245,7 @@ class ECBActions extends DefaultECBehavior
 				case State.waitAction
 					if pProcessStyle != ProcessStyle.sequenceNoWait \
 					and not ( pActionCycle.getAt( pActionIndex ) cast Action ).finished( this )
+						log("processActions.done")
 						return
 					end
 					
@@ -245,6 +254,7 @@ class ECBActions extends DefaultECBehavior
 					select pProcessStyle
 					case ProcessStyle.sequenceOne, ProcessStyle.randomOne
 						pState = State.ready
+						log("processActions.done")
 						return
 					end
 					
@@ -254,11 +264,15 @@ class ECBActions extends DefaultECBehavior
 				case State.delay
 					if elapsed < pDelay
 						pDelay -= elapsed
+						log("processActions.done")
 						return
 					end
 					
 					elapsed -= pDelay
 					pState = State.runAction
+					
+				else
+					throw EInvalidParam.new()
 				end
 			end
 		end
@@ -266,8 +280,18 @@ class ECBActions extends DefaultECBehavior
 		
 		public func void think( float elapsed )
 			if pState != State.ready
+				log("think")
 				processActions( elapsed )
 			end
+		end
+		
+		
+		protected func void log( String message )
+			return
+			BaseGameApp.getApp().getConsole().addMessage("" + getElement().getClass() + "@" \
+				+ getElement().getPosition() + "(ps=" + pProcessStyle + " s=" + pState \
+				+ " ai=" + pActionIndex + "/" + (pActionCycle != null if pActionCycle.getCount() else 0) \
+				+ "): " + message)
 		end
 	end
 	
@@ -318,6 +342,10 @@ class ECBActions extends DefaultECBehavior
 		// TODO
 	end
 	
+	
+	public func Instance instance( BehaviorElement element )
+		return element.getInstanceAt( this.getInstanceIndex() ) cast Instance
+	end
 	
 	static public func ECBActions getBehaviorIn( BehaviorElementClass eclass )
 		return eclass.findBehavior( block ECBehavior each

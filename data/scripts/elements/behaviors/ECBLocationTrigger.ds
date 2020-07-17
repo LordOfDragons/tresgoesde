@@ -1,0 +1,395 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Add support to track player and dinosaurs entering and leaving. Fires ECBActions if
+ * fire trigger condition is fulfilled and ECBTriggerExpression evaluates to true.
+ */
+class ECBLocationTrigger extends DefaultECBehavior
+	class TouchListener extends ECBehaviorTouchSensor.DefaultListener
+		protected var Instance pInstance
+		
+		public func new( Instance instance )
+			pInstance = instance
+		end
+		
+		public func void elementEntered( ECBehaviorTouchSensor.Instance instance, Element element )
+			pInstance.entered( element cast BehaviorElement )
+		end
+		
+		public func void elementLeft( ECBehaviorTouchSensor.Instance instance, Element element )
+			pInstance.left( element cast BehaviorElement )
+		end
+		
+		public func bool elementCanTouch( ECBehaviorTouchSensor.Instance instance, Element element )
+			return element castable BehaviorElement \
+				and pInstance.canTouch( element cast BehaviorElement )
+		end
+	end
+	
+	class Instance extends DefaultECBehaviorInstance
+		protected var ECBLocationTrigger pECBehavior
+		protected var ECBehaviorTouchSensor.Instance pTouchSensor
+		protected var ECBehaviorTriggered.Instance pTriggerExpression
+		protected var ECBActions.Instance pActions
+		protected var bool pPlayerEnter
+		protected var bool pPlayerInside
+		protected var bool pPlayerLeave
+		protected var bool pObjectEnter
+		protected var bool pObjectInside
+		protected var bool pObjectLeave
+		protected var bool pCreatureEnter
+		protected var bool pCreatureInside
+		protected var bool pCreatureLeave
+		protected var int pCreatureEnterCount
+		protected var int pCreatureLeaveCount
+		protected var String pTriggerActivate
+		protected var bool pPointTrigger
+		
+		protected var int pCountCreatesEntered
+		protected var int pCountCreatesLeft
+		
+		
+		public func new( ECBLocationTrigger ecbehavior, BehaviorElement element ) super( element )
+			pECBehavior = ecbehavior
+			pTouchSensor = ecbehavior.getTouchSensor().instance( element )
+			pTriggerExpression = ecbehavior.getTriggerExpression().instance( element )
+			pActions = ecbehavior.getActions().instance( element )
+		end
+		
+		public func void dispose()
+			pTouchSensor = null
+			pTriggerExpression = null
+			pActions = null
+			super.dispose()
+		end
+		
+		
+		public func void init( StubElement stub )
+			pPlayerEnter = pECBehavior.getPlayerEnter().getValue( stub )
+			pPlayerInside = pECBehavior.getPlayerInside().getValue( stub )
+			pPlayerLeave = pECBehavior.getPlayerLeave().getValue( stub )
+			pObjectEnter = pECBehavior.getObjectEnter().getValue( stub )
+			pObjectInside = pECBehavior.getObjectInside().getValue( stub )
+			pObjectLeave = pECBehavior.getObjectLeave().getValue( stub )
+			pCreatureEnter = pECBehavior.getCreatureEnter().getValue( stub )
+			pCreatureInside = pECBehavior.getCreatureInside().getValue( stub )
+			pCreatureLeave = pECBehavior.getCreatureLeave().getValue( stub )
+			pCreatureEnterCount = pECBehavior.getCreatureEnterCount().getValue( stub )
+			pCreatureLeaveCount = pECBehavior.getCreatureLeaveCount().getValue( stub )
+			pTriggerActivate = pECBehavior.getTriggerActivate().getValue( stub )
+			pPointTrigger = pECBehavior.getPointTrigger().getValue( stub )
+			
+			pCreatureEnter |= pCreatureEnterCount > 0
+			pCreatureLeave |= pCreatureLeaveCount > 0
+			
+			pTouchSensor.addListener( TouchListener.new( this ) )
+		end
+		
+		
+		public func void entered( BehaviorElement element )
+			setRequiresThink( pPlayerInside or pObjectInside or pCreatureInside )
+			
+			// this is done using multiple lines to ensure all potential side-effects are triggered
+			var bool doFire = false
+			doFire |= pPlayerEnter and isPlayer( element )
+			doFire |= pObjectEnter and matches( element )
+			doFire |= pCreatureEnter and matches( element ) and enoughCreatesEntered()
+			
+			if doFire
+				fire()
+			end
+		end
+		
+		public func void left( BehaviorElement element )
+			setRequiresThink( ( pPlayerInside or pObjectInside or pCreatureInside ) \
+				and pTouchSensor.getTouchingElementCount() > 0 )
+			
+			// this is done using multiple lines to ensure all potential side-effects are triggered
+			var bool doFire = false
+			doFire |= pPlayerLeave and isPlayer( element )
+			doFire |= pObjectLeave and matches( element )
+			doFire |= pCreatureLeave and matches( element ) and enoughCreatesLeft()
+			
+			if doFire
+				fire()
+			end
+		end
+		
+		public func bool canTouch( BehaviorElement element )
+			if pPlayerEnter or pPlayerInside or pPlayerLeave
+				if isPlayer( element )
+					return true
+				end
+			end
+			
+			if pObjectEnter or pObjectInside or pObjectLeave
+				if pTriggerActivate != null
+					// only this object
+				end
+				return false
+			end
+			
+			if pCreatureEnter or pCreatureInside or pCreatureLeave
+				if pTriggerActivate != null
+					// only this creature
+				end
+				return false
+			end
+			
+			return false
+		end
+		
+		protected func bool isPlayer( BehaviorElement element )
+			return element.getClass().getClassname().equals( "Player" )
+		end
+		
+		protected func bool matches( BehaviorElement element )
+			if pTriggerActivate != null
+				// check if the element is the desired object/creature
+				return false
+			end
+			return true
+		end
+		
+		protected func bool enoughCreatesEntered()
+			pCountCreatesEntered++
+			return pCountCreatesEntered >= pCreatureEnterCount
+		end
+		
+		protected func bool enoughCreatesLeft()
+			pCountCreatesLeft++
+			return pCountCreatesLeft >= pCreatureLeaveCount
+		end
+		
+		
+		public func void fire()
+			//BaseGameApp.getApp().getConsole().addMessage("fire " + getElement().getPosition() + " " + pTriggerExpression.getState( true ) + " " + pTriggerExpression.getTriggerExpression())
+			if pTriggerExpression.getState( true )
+				pActions.fire()
+			end
+		end
+		
+		
+		public func void think( float elapsed )
+			// this is done using multiple lines to ensure all potential side-effects are triggered
+			var bool doFire = false
+			
+			doFire |= pPlayerInside and pTouchSensor.findTouchingElement( block BehaviorElement each
+				return isPlayer( each )
+			end ) != null
+			
+			doFire |= pObjectInside and pTouchSensor.findTouchingElement( block BehaviorElement each
+				return matches( each )
+			end ) != null
+			
+			doFire |= pCreatureInside and pTouchSensor.findTouchingElement( block BehaviorElement each
+				return matches( each )
+			end ) != null
+			
+			if doFire
+				fire()
+			end
+		end
+	end
+	
+	
+	protected var ECBehaviorTouchSensor pTouchSensor
+	protected var ECBehaviorTriggered pTriggerExpression
+	protected var ECBActions pActions
+	protected var ECPBoolean pPlayerEnter
+	protected var ECPBoolean pPlayerInside
+	protected var ECPBoolean pPlayerLeave
+	protected var ECPBoolean pObjectEnter
+	protected var ECPBoolean pObjectInside
+	protected var ECPBoolean pObjectLeave
+	protected var ECPBoolean pCreatureEnter
+	protected var ECPBoolean pCreatureInside
+	protected var ECPBoolean pCreatureLeave
+	protected var ECPInteger pCreatureEnterCount
+	protected var ECPInteger pCreatureLeaveCount
+	protected var ECPString pTriggerActivate
+	protected var ECPBoolean pPointTrigger
+	
+	
+	public func new( BehaviorElementClass eclass, ECBehaviorTouchSensor touchSensor, \
+	ECBehaviorTriggered triggerExpression, ECBActions actions ) super( eclass )
+		if getBehaviorIn( eclass ) != null
+			throw BEMultipleInstanceException.new( eclass, this )
+		end
+		if touchSensor == null
+			throw ENullPointer.new( "touchSensor" )
+		end
+		if triggerExpression == null
+			throw ENullPointer.new( "triggerExpression" )
+		end
+		if actions == null
+			throw ENullPointer.new( "actions" )
+		end
+		
+		pTouchSensor = touchSensor
+		pTriggerExpression = triggerExpression
+		pActions = actions
+		
+		pPlayerEnter = ECPBoolean.new( "PlayerEnterTrigger", false )
+		eclass.addProperty( pPlayerEnter )
+		
+		pPlayerInside = ECPBoolean.new( "PlayerInTrigger", false )
+		eclass.addProperty( pPlayerInside )
+		
+		pPlayerLeave = ECPBoolean.new( "PlayerLeaveTrigger", false )
+		eclass.addProperty( pPlayerLeave )
+		
+		pObjectEnter = ECPBoolean.new( "ObjectEnterTrigger", false )
+		eclass.addProperty( pObjectEnter )
+		
+		pObjectInside = ECPBoolean.new( "ObjectInTrigger", false )
+		eclass.addProperty( pObjectInside )
+		
+		pObjectLeave = ECPBoolean.new( "ObjectLeaveTrigger", false )
+		eclass.addProperty( pObjectLeave )
+		
+		pCreatureEnter = ECPBoolean.new( "CreatureEnterTrigger", false )
+		eclass.addProperty( pCreatureEnter )
+		
+		pCreatureInside = ECPBoolean.new( "CreatureInTrigger", false )
+		eclass.addProperty( pCreatureInside )
+		
+		pCreatureLeave = ECPBoolean.new( "CreatureLeaveTrigger", false )
+		eclass.addProperty( pCreatureLeave )
+		
+		pCreatureEnterCount = ECPInteger.new( "CreatureEnterCount", 0, 0 )
+		eclass.addProperty( pCreatureEnterCount )
+		
+		pCreatureLeaveCount = ECPInteger.new( "CreatureLeaveCount", 0, 0 )
+		eclass.addProperty( pCreatureLeaveCount )
+		
+		pTriggerActivate = ECPString.new( "TriggerActivate", "" )
+		eclass.addProperty( pTriggerActivate )
+		
+		pPointTrigger = ECPBoolean.new( "PointTrigger", false )
+		eclass.addProperty( pPointTrigger )
+		
+		eclass.addBehavior( this )
+	end
+	
+	public func void dispose()
+		pTouchSensor = null
+		pTriggerExpression = null
+		pActions = null
+		super.dispose()
+	end
+	
+	
+	public func ECBehaviorTouchSensor getTouchSensor()
+		return pTouchSensor
+	end
+	
+	public func ECBehaviorTriggered getTriggerExpression()
+		return pTriggerExpression
+	end
+	
+	public func ECBActions getActions()
+		return pActions
+	end
+	
+	public func ECPBoolean getPlayerEnter()
+		return pPlayerEnter
+	end
+	
+	public func ECPBoolean getPlayerInside()
+		return pPlayerInside
+	end
+	
+	public func ECPBoolean getPlayerLeave()
+		return pPlayerLeave
+	end
+	
+	public func ECPBoolean getObjectEnter()
+		return pObjectEnter
+	end
+	
+	public func ECPBoolean getObjectInside()
+		return pObjectInside
+	end
+	
+	public func ECPBoolean getObjectLeave()
+		return pObjectLeave
+	end
+	
+	public func ECPBoolean getCreatureEnter()
+		return pCreatureEnter
+	end
+	
+	public func ECPBoolean getCreatureInside()
+		return pCreatureInside
+	end
+	
+	public func ECPBoolean getCreatureLeave()
+		return pCreatureLeave
+	end
+	
+	public func ECPInteger getCreatureEnterCount()
+		return pCreatureEnterCount
+	end
+	
+	public func ECPInteger getCreatureLeaveCount()
+		return pCreatureLeaveCount
+	end
+	
+	public func ECPString getTriggerActivate()
+		return pTriggerActivate
+	end
+	
+	public func ECPBoolean getPointTrigger()
+		return pPointTrigger
+	end
+	
+	
+	
+	public func Instance instance( BehaviorElement element )
+		return element.getInstanceAt( this.getInstanceIndex() ) cast Instance
+	end
+	
+	static public func ECBLocationTrigger getBehaviorIn( BehaviorElementClass eclass )
+		return eclass.findBehavior( block ECBehavior each
+			return each castable ECBLocationTrigger
+		end ) cast ECBLocationTrigger
+	end
+	
+	static public func Instance getInstanceIn( BehaviorElement element )
+		return element.findInstance( block ECBehaviorInstance each
+			return each castable Instance
+		end ) cast Instance
+	end
+	
+	
+	public func ECBehaviorInstance createInstance( BehaviorElement element )
+		return Instance.new( this, element )
+	end
+end
