@@ -6,13 +6,24 @@ pin Dragengine.Preloading
 
 
 class CPlayerClass extends BaseActorClass
+	private var ECBModelSwitcher pModelSwitcher
+	
+	
 	public func new() this( "Player" )
 	end
 	
 	public func new( String className ) super( className )
 		getComponent().getComponent().getRig().setPath( "/content/models/player.derig" )
 		getAIAction().setActionFactory( PABasic.Factory.new() )
+		
+		pModelSwitcher = ECBModelSwitcher.new( this, getComponent() )
 	end
+	
+	
+	public func ECBModelSwitcher getModelSwitcher()
+		return pModelSwitcher
+	end
+	
 	
 	public func ElementClass duplicateNamed( String classname )
 		return CPlayerClass.new( classname )

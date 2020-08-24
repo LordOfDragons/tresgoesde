@@ -48,28 +48,16 @@ class StartGame extends WindowGameWorld.Loader
 		var GameApp app = GameApp.getGameApp()
 		var GameWorld gameWorld = getStubWorld().getGameWorld()
 		
-		// create player actor
-		var ElementClass eclass = app.getElementClassList().getNamed( "Player" )
-		var StubElement stub = StubElement.new( eclass, app.getIDGenerator().nextID() )
+		// TEMP HACK
+		var SkyInstance sky = SkyInstance.new()
+		sky.setSky( app.getLoaders().getSky().loadFromFile( "/content/skies/static.desky" ) )
+		gameWorld.getWorld().addSky( sky )
+		// TEMP HACK
 		
-		var CPlayer player = stub.createElement() cast CPlayer
-		
-// 		gameWorld.getSpawnPoints().getNamed( "player" ).spawn( gameWorld, player )
-			// TEMP HACK
-			var SpawnPoint spawn = SpawnPoint.new( "player" )
-			spawn.setPosition( DVector.new( 2.2302 + 0.6, 2.2539, -3.1609 ) )
-				spawn.setPosition( spawn.getPosition() + DVector.new( 0, 10, 0 ) )
-			spawn.setOrientation( Quaternion.new() )
-			spawn.spawn( gameWorld, player )
-			// TEMP HACK
-			
-			// TEMP HACK
-			var SkyInstance sky = SkyInstance.new()
-			sky.setSky( app.getLoaders().getSky().loadFromFile( "/content/skies/static.desky" ) )
-			gameWorld.getWorld().addSky( sky )
-			// TEMP HACK
-		
-		player.getPlayerControllable().takeControl()
+		// find player and take control
+		( gameWorld.findElement( block Element each
+			return each.getClass().getClassname().equals( "Player" )
+		end ) cast CPlayer ).getPlayerControllable().takeControl()
 		
 		getWindow().setCameraDirector( PlayerControlledActorCameraDirector.new() )
 		

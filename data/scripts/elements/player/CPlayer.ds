@@ -8,22 +8,15 @@ pin Dragengine.Utils
 
 
 class CPlayer extends BaseActor
-// 	private var Array pPoseModels
+	private var ECBModelSwitcher.Instance pModelSwitcher
 	
 	
 	public func new( CPlayerClass eclass ) super( eclass )
-// 		this.pPoseModels = Array.new()
+		pModelSwitcher = eclass.getModelSwitcher().instance( this )
 	end
 	
 	
-	public func void init( StubElement stub )
-		super.init( stub )
-		/*
-		var int i
-		for i = 0 to 13
-			this.pPoseModels.add( world.getModel( stub.getPropertyValueFor( \
-				"A" + ( i < 10 if "0" else "" ) + i, null ) ) )
-		end
-		*/
+	public func ECBModelSwitcher.Instance getModelSwitcher()
+		return pModelSwitcher
 	end
 end

@@ -1,0 +1,129 @@
+/* 
+ * Trespasser Goes Drag[en]gine
+ *
+ * Copyright (C) 2020, Roland Plüss (roland@rptd.ch)
+ * 
+ * This program is free software; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation; either 
+ * version 2 of the License, or (at your option) any later 
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+namespace TresGoesDE.Elements
+
+pin Dragengine.Scenery
+pin Dragengine.Preloading
+pin Dragengine.Utils
+
+
+/**
+ * Adds support to switch model of ECBehaviorComponent using a model from a list of models.
+ */
+class ECBModelSwitcher extends DefaultECBehavior
+	class Instance extends DefaultECBehaviorInstance
+		protected var ECBModelSwitcher pECBehavior
+		protected var ECBehaviorComponent.Instance pComponent
+		protected var Array pModels
+		protected var Model pBaseModel
+		protected var int pActiveModel
+		
+		
+		public func new( ECBModelSwitcher ecbehavior, BehaviorElement element ) super( element )
+			pECBehavior = ecbehavior
+			pModels = Array.new()
+			pActiveModel = -1
+			pComponent = ecbehavior.getComponent().instance( element )
+		end
+		
+		public func void dispose()
+			pComponent = null
+			super.dispose()
+		end
+		
+		
+		public func void init( StubElement stub )
+			pBaseModel = pComponent.getComponent().getModel()
+			
+			var int index = 0
+			while stub.hasPropertyWithKey( "modelSwitcher.model" + index )
+				pModels.add( Model.new( stub.getPropertyValueFor( "modelSwitcher.model" + index++, null ) ) )
+			end
+		end
+		
+		
+		public func int getActiveModel()
+			return pActiveModel
+		end
+		
+		public func void setActiveModel( int index )
+			if index == pActiveModel
+				return
+			end
+			
+			pActiveModel = index
+			
+			if index == -1
+				pComponent.getComponent().setModel( pBaseModel )
+				
+			else
+				pComponent.getComponent().setModel( pModels.getAt( index ) cast Model )
+			end
+		end
+	end
+	
+	
+	private var ECBehaviorComponent pComponent
+	
+	
+	public func new( BehaviorElementClass eclass, ECBehaviorComponent component ) super( eclass )
+		if getBehaviorIn( eclass ) != null
+			throw BEMultipleInstanceException.new( eclass, this )
+		end
+		
+		pComponent = component
+		
+		eclass.addBehavior( this )
+	end
+	
+	public func void dispose()
+		pComponent = null
+		super.dispose()
+	end
+	
+	
+	public func ECBehaviorComponent getComponent()
+		return pComponent
+	end
+	
+	
+	public func Instance instance( BehaviorElement element )
+		return element.getInstanceAt( this.getInstanceIndex() ) cast Instance
+	end
+	
+	static public func ECBModelSwitcher getBehaviorIn( BehaviorElementClass eclass )
+		return eclass.findBehavior( block ECBehavior each
+			return each castable ECBModelSwitcher
+		end ) cast ECBModelSwitcher
+	end
+	
+	static public func Instance getInstanceIn( BehaviorElement element )
+		return element.findInstance( block ECBehaviorInstance each
+			return each castable Instance
+		end ) cast Instance
+	end
+	
+	
+	public func ECBehaviorInstance createInstance( BehaviorElement element )
+		return Instance.new( this, element )
+	end
+end

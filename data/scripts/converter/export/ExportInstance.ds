@@ -49,6 +49,8 @@ class ExportInstance
 	private var GroffInstance pZeroInstance
 	private var Array pPhysicsInstances
 	
+	private var Array pModelSwitcherModels // GroffModel
+	
 	
 	public func new( GroffInstance groffInstance )
 		pGroffInstance = groffInstance
@@ -57,6 +59,7 @@ class ExportInstance
 		pProperties = StubWithProperties.new()
 		pIsVisible = true
 		pPhysicsInstances = Array.new()
+		pModelSwitcherModels = Array.new()
 	end
 	
 	
@@ -304,6 +307,13 @@ class ExportInstance
 				tag.setAttribute( "key", "component.occlusionMesh" )
 				exporter.addOcclusionMesh( pOcclusion )
 			end
+			
+			pModelSwitcherModels.forEach( block int index, GroffModel model
+				tag = tagObject.addDataTag( "property", \
+					( exporter.getPathModelDir() + ( model.getName().getName() + ".demodel" ) ).getPath() )
+				tag.setAttribute( "key", "modelSwitcher.model" + index )
+				exporter.addModel( model )
+			end )
 		end
 		
 		/*
@@ -492,6 +502,17 @@ class ExportInstance
 				pIsVisible = true
 				pProperties.removePropertyWithKey( "Shadow" )
 				pProperties.removePropertyWithKey( "Bumpmaps" )
+			end
+			
+		elif pClass.equals( "Player" )
+			var int i = 0
+			for i = 0 to 20
+				var String key = "A{:02d}".format( Array.newWith( i ) )
+				var String id = pProperties.getPropertyValueFor( key, null )
+				if id != null
+					pModelSwitcherModels.add( groff.getInstanceByName( id ).getModel() )
+					pProperties.removePropertyWithKey( key )
+				end
 			end
 		end
 		
